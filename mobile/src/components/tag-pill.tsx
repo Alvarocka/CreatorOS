@@ -12,8 +12,8 @@ export function TagPill({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   pill: {
-    backgroundColor: 'rgba(232, 168, 76, 0.10)',
-    borderColor: 'rgba(232, 168, 76, 0.35)',
+    backgroundColor: 'rgba(255, 79, 216, 0.12)',
+    borderColor: 'rgba(255, 79, 216, 0.35)',
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 10,

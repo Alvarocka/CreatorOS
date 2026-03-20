@@ -45,7 +45,7 @@ export function WaveformTimeline({
               style={[
                 styles.bar,
                 {
-                  backgroundColor: played ? creatorTheme.amber : '#47433b',
+                  backgroundColor: played ? creatorTheme.blue : '#34405f',
                   height: 14 + bar * 30,
                 },
               ]}

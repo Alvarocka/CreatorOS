@@ -89,14 +89,18 @@ const styles = StyleSheet.create({
   buttonWrap: {
     borderRadius: 999,
     overflow: 'hidden',
+    shadowColor: '#050816',
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.32,
+    shadowRadius: 24,
   },
   disabled: {
     opacity: 0.6,
   },
   ghostButton: {
     alignItems: 'center',
-    backgroundColor: creatorTheme.panelSoft,
-    borderColor: creatorTheme.border,
+    backgroundColor: creatorTheme.panelStrong,
+    borderColor: creatorTheme.borderSoft,
     borderRadius: 999,
     borderWidth: 1,
     justifyContent: 'center',
@@ -114,6 +118,8 @@ const styles = StyleSheet.create({
   },
   gradient: {
     alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
     borderRadius: 999,
     justifyContent: 'center',
     minHeight: 54,
@@ -125,7 +131,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   innerGlow: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderRadius: 999,
     height: 14,
     position: 'absolute',

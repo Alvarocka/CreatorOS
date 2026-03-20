@@ -4,20 +4,20 @@ import { creatorTheme } from '@/src/lib/theme';
 
 const toneMap = {
   audio: {
-    border: 'rgba(255, 160, 74, 0.28)',
-    value: '#FFB15C',
+    border: 'rgba(255, 79, 216, 0.34)',
+    value: '#FF7FE7',
   },
   neutral: {
-    border: 'rgba(255,255,255,0.08)',
-    value: '#FFFFFF',
+    border: 'rgba(255,255,255,0.10)',
+    value: '#F4F6FF',
   },
   video: {
-    border: 'rgba(108, 156, 255, 0.26)',
-    value: '#8BB2FF',
+    border: 'rgba(85, 230, 255, 0.30)',
+    value: '#7DEBFF',
   },
   visual: {
-    border: 'rgba(125, 225, 170, 0.26)',
-    value: '#79E2A9',
+    border: 'rgba(139, 107, 255, 0.28)',
+    value: '#B69AFF',
   },
 } as const;
 
@@ -46,13 +46,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   pill: {
-    backgroundColor: creatorTheme.panelSoft,
+    backgroundColor: creatorTheme.panelStrong,
     borderRadius: creatorTheme.radiusLg,
     borderWidth: 1,
     gap: 6,
     minWidth: 108,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    shadowColor: '#050816',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
   value: {
     fontFamily: creatorTheme.fontUiBold,

@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   tag: {
-    backgroundColor: 'rgba(232, 168, 76, 0.10)',
-    borderColor: 'rgba(232, 168, 76, 0.32)',
+    backgroundColor: 'rgba(255, 79, 216, 0.12)',
+    borderColor: 'rgba(255, 79, 216, 0.32)',
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 8,

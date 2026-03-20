@@ -626,11 +626,13 @@ export default function StudioDocumentScreen() {
                 <MediaPlayerBar
                   currentTime={currentTime || 0}
                   duration={duration || 0}
+                  loopEnabled={loopEnabled}
                   mediaType={document.mediaType}
                   muted={muted}
                   onRestart={() => handleSeek(0)}
                   onSeek={handleSeek}
                   onSeekBy={handleSeekBy}
+                  onToggleLoop={() => setLoopEnabled((current) => !current)}
                   onToggleMute={() => setMuted((current) => !current)}
                   onTogglePlay={handleTogglePlayback}
                   playbackRate={playbackRate}

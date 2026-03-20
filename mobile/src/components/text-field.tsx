@@ -23,7 +23,7 @@ export function TextField({
 
 const styles = StyleSheet.create({
   input: {
-    backgroundColor: creatorTheme.panelSoft,
+    backgroundColor: creatorTheme.panelStrong,
     borderColor: creatorTheme.border,
     borderRadius: creatorTheme.radiusLg,
     borderWidth: 1,

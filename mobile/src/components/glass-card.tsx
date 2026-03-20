@@ -18,5 +18,9 @@ const styles = StyleSheet.create({
     borderRadius: creatorTheme.radiusXl,
     borderWidth: 1,
     padding: 18,
+    shadowColor: '#040610',
+    shadowOffset: { height: 16, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
   },
 });

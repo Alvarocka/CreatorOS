@@ -15,7 +15,7 @@ export function QuickCaptureFab({ onPress }: { onPress?: () => void }) {
     <Pressable onPress={handlePress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
       <LinearGradient colors={creatorGradients.warning} style={styles.gradient}>
         <View style={styles.badge}>
-          <Feather color={creatorTheme.black} name="plus" size={18} />
+          <Feather color={creatorTheme.text} name="plus" size={18} />
         </View>
         <View style={styles.copy}>
           <Text style={styles.eyebrow}>TRY ME</Text>
@@ -29,7 +29,7 @@ export function QuickCaptureFab({ onPress }: { onPress?: () => void }) {
 const styles = StyleSheet.create({
   badge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: 999,
     height: 34,
     justifyContent: 'center',
@@ -39,14 +39,14 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   eyebrow: {
-    color: 'rgba(15, 14, 12, 0.72)',
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: creatorTheme.fontMonoMedium,
     fontSize: 10,
     letterSpacing: 0.8,
   },
   gradient: {
     alignItems: 'center',
-    borderColor: 'rgba(232, 168, 76, 0.35)',
+    borderColor: 'rgba(255,255,255,0.18)',
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   title: {
-    color: creatorTheme.black,
+    color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiExtraBold,
     fontSize: 18,
   },
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
       height: 18,
       width: 0,
     },
-    shadowOpacity: 0.28,
-    shadowRadius: 26,
+    shadowOpacity: 0.34,
+    shadowRadius: 30,
   },
 });

@@ -35,7 +35,7 @@ export function ScreenShell({
               <RefreshControl
                 onRefresh={onRefresh}
                 refreshing={Boolean(refreshing)}
-                tintColor="#FFFFFF"
+                tintColor={creatorTheme.blue}
               />
             ) : undefined
           }>

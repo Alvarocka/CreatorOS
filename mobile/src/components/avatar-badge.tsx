@@ -18,6 +18,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 48,
     justifyContent: 'center',
+    shadowColor: '#050816',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.26,
+    shadowRadius: 20,
     width: 48,
   },
   text: {

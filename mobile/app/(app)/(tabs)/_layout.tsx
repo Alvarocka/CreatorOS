@@ -13,7 +13,7 @@ export default function TabsLayout() {
           animation: 'fade',
           headerShown: false,
           sceneStyle: { backgroundColor: creatorTheme.background },
-          tabBarActiveTintColor: creatorTheme.text,
+          tabBarActiveTintColor: creatorTheme.blue,
           tabBarInactiveTintColor: creatorTheme.textMuted,
           tabBarLabelStyle: {
             fontFamily: creatorTheme.fontMonoMedium,
@@ -25,6 +25,10 @@ export default function TabsLayout() {
             borderTopColor: creatorTheme.borderSoft,
             height: 84,
             paddingTop: 8,
+            shadowColor: '#050816',
+            shadowOffset: { height: -10, width: 0 },
+            shadowOpacity: 0.3,
+            shadowRadius: 24,
           },
         }}>
         <Tabs.Screen

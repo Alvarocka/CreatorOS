@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
   },
   shell: {
     alignItems: 'center',
-    backgroundColor: creatorTheme.panelSoft,
+    backgroundColor: creatorTheme.panelStrong,
     borderColor: creatorTheme.border,
     borderRadius: 999,
     borderWidth: 1,
@@ -35,5 +35,9 @@ const styles = StyleSheet.create({
     gap: 10,
     minHeight: 52,
     paddingHorizontal: 16,
+    shadowColor: '#040610',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
   },
 });

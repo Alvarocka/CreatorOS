@@ -26,7 +26,7 @@ export function FilterChip({
 
 const styles = StyleSheet.create({
   chip: {
-    backgroundColor: creatorTheme.panelSoft,
+    backgroundColor: creatorTheme.panelStrong,
     borderColor: creatorTheme.border,
     borderRadius: 999,
     borderWidth: 1,
@@ -34,8 +34,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   chipActive: {
-    backgroundColor: 'rgba(232, 168, 76, 0.16)',
-    borderColor: 'rgba(232, 168, 76, 0.55)',
+    backgroundColor: 'rgba(255, 79, 216, 0.18)',
+    borderColor: 'rgba(255, 79, 216, 0.45)',
   },
   chipPressed: {
     opacity: 0.9,
