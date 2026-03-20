@@ -3,6 +3,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { GlassCard } from '@/src/components/glass-card';
 import { formatMediaSize } from '@/src/lib/studio-documents';
+import { formatDocumentDate, getDocumentPreview } from '@/src/lib/studio-format';
 import { creatorTheme } from '@/src/lib/theme';
 import type { StudioDocument } from '@/src/types/app';
 
@@ -11,12 +12,6 @@ const mediaIconMap = {
   image: 'image',
   video: 'film',
 } as const;
-
-function getPreview(noteText: string) {
-  const compact = noteText.replace(/\s+/g, ' ').trim();
-  if (!compact) return 'Abre el documento y empieza a desarrollar la idea.';
-  return compact.length > 96 ? `${compact.slice(0, 96)}...` : compact;
-}
 
 export function StudioDocumentCard({
   document,
@@ -42,14 +37,23 @@ export function StudioDocumentCard({
               {document.title}
             </Text>
             <Text numberOfLines={1} style={styles.meta}>
-              {document.mediaName || 'Documento de texto'} ·{' '}
+              {formatDocumentDate(document.updatedAt)} · {document.mediaName || 'Documento de texto'} ·{' '}
               {formatMediaSize(document.mediaSizeBytes)}
             </Text>
           </View>
         </View>
         <Text numberOfLines={3} style={styles.preview}>
-          {getPreview(document.noteText)}
+          {getDocumentPreview(document.noteText)}
         </Text>
+        {document.tags.length ? (
+          <View style={styles.tagsRow}>
+            {document.tags.slice(0, 3).map((tag) => (
+              <View key={tag} style={styles.tag}>
+                <Text style={styles.tagText}>#{tag}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </GlassCard>
     </Pressable>
   );
@@ -58,7 +62,7 @@ export function StudioDocumentCard({
 const styles = StyleSheet.create({
   badge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: creatorTheme.panelSoft,
     borderRadius: 14,
     height: 42,
     justifyContent: 'center',
@@ -78,6 +82,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontMono,
     fontSize: 12,
   },
   pressed: {
@@ -86,12 +91,31 @@ const styles = StyleSheet.create({
   },
   preview: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontBody,
     fontSize: 15,
     lineHeight: 23,
   },
+  tag: {
+    backgroundColor: 'rgba(232, 168, 76, 0.10)',
+    borderColor: 'rgba(232, 168, 76, 0.32)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tagText: {
+    color: creatorTheme.amber,
+    fontFamily: creatorTheme.fontMono,
+    fontSize: 11,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   title: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 17,
-    fontWeight: '800',
   },
 });

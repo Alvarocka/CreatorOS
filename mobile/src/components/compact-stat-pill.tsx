@@ -41,13 +41,13 @@ export function CompactStatPill({
 const styles = StyleSheet.create({
   label: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontMono,
     fontSize: 12,
-    fontWeight: '700',
     textTransform: 'uppercase',
   },
   pill: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 18,
+    backgroundColor: creatorTheme.panelSoft,
+    borderRadius: creatorTheme.radiusLg,
     borderWidth: 1,
     gap: 6,
     minWidth: 108,
@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   value: {
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 22,
-    fontWeight: '900',
     letterSpacing: -0.6,
   },
 });

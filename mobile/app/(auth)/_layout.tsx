@@ -1,13 +1,5 @@
-import { Redirect, Stack } from 'expo-router';
-
-import { useAuth } from '@/src/providers/auth-provider';
+import { Redirect } from 'expo-router';
 
 export default function AuthLayout() {
-  const { initialized, session } = useAuth();
-
-  if (initialized && session) {
-    return <Redirect href="/(app)/(tabs)" />;
-  }
-
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Redirect href="/(app)/(tabs)" />;
 }

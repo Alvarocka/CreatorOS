@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,15 +14,24 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
-import { GlassCard } from '@/src/components/glass-card';
+import { FilterChip } from '@/src/components/filter-chip';
 import { GradientButton } from '@/src/components/gradient-button';
 import { MediaPlayerBar } from '@/src/components/media-player-bar';
+import { TagPill } from '@/src/components/tag-pill';
 import { TextField } from '@/src/components/text-field';
+import { exportStudioDocument } from '@/src/lib/studio-export';
+import {
+  applyToolbarAction,
+  extractTimestampMarkers,
+  formatSecondsToClock,
+  parseTags,
+  stringifyTags,
+} from '@/src/lib/studio-format';
 import {
   fetchStudioDocumentById,
   formatMediaSize,
@@ -31,51 +41,49 @@ import {
 } from '@/src/lib/studio-documents';
 import { creatorGradients, creatorTheme } from '@/src/lib/theme';
 import { useAuth } from '@/src/providers/auth-provider';
-import type { StudioDocument } from '@/src/types/app';
+import type { StudioDocument, StudioExportFormat, StudioToolbarAction } from '@/src/types/app';
 
-function formatTimestamp(seconds: number) {
-  const safeSeconds = Math.max(0, Math.floor(seconds || 0));
-  const minutes = Math.floor(safeSeconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const remainder = (safeSeconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${remainder}`;
-}
-
-function MediaToolbarChip({
+function ToolbarButton({
   active,
   icon,
   label,
   onPress,
+  primary,
 }: {
   active?: boolean;
-  icon?: keyof typeof Feather.glyphMap;
+  icon: keyof typeof Feather.glyphMap;
   label: string;
   onPress?: () => void;
+  primary?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.toolbarChip,
-        active && styles.toolbarChipActive,
-        pressed && styles.toolbarChipPressed,
+        styles.toolbarButton,
+        primary && styles.toolbarButtonPrimary,
+        active && styles.toolbarButtonActive,
+        pressed && styles.toolbarButtonPressed,
       ]}>
-      {icon ? (
-        <Feather
-          color={active ? '#0D1324' : creatorTheme.textMuted}
-          name={icon}
-          size={15}
-        />
-      ) : null}
-      <Text style={[styles.toolbarChipText, active && styles.toolbarChipTextActive]}>{label}</Text>
+      <Feather
+        color={primary || active ? creatorTheme.black : creatorTheme.textMuted}
+        name={icon}
+        size={14}
+      />
+      <Text
+        style={[
+          styles.toolbarButtonText,
+          (primary || active) && styles.toolbarButtonTextActive,
+        ]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 export default function StudioDocumentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
+  const { profile, user } = useAuth();
   const { width } = useWindowDimensions();
   const isTablet = width >= 900;
   const [loading, setLoading] = useState(true);
@@ -83,16 +91,18 @@ export default function StudioDocumentScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [noteText, setNoteText] = useState('');
+  const [tagValue, setTagValue] = useState('');
   const [feedback, setFeedback] = useState('');
   const [selection, setSelection] = useState({ end: 0, start: 0 });
-  const [playingRate, setPlayingRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [loopEnabled, setLoopEnabled] = useState(false);
-  const [videoPlaybackState, setVideoPlaybackState] = useState({
-    currentTime: 0,
-    duration: 0,
-    playing: false,
-  });
+  const [muted, setMuted] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [videoExpanded, setVideoExpanded] = useState(false);
+  const [savingState, setSavingState] = useState<'idle' | 'saved' | 'saving' | 'error'>('idle');
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
+
   const audioPlayer = useAudioPlayer(
     document?.mediaType === 'audio' && document.mediaUri ? document.mediaUri : null,
     { updateInterval: 250 }
@@ -101,6 +111,11 @@ export default function StudioDocumentScreen() {
   const videoPlayer = useVideoPlayer(
     document?.mediaType === 'video' && document.mediaUri ? document.mediaUri : null
   );
+  const [videoPlaybackState, setVideoPlaybackState] = useState({
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+  });
 
   const currentTime =
     document?.mediaType === 'audio' ? audioStatus.currentTime : videoPlaybackState.currentTime;
@@ -108,6 +123,8 @@ export default function StudioDocumentScreen() {
     document?.mediaType === 'audio' ? audioStatus.duration : videoPlaybackState.duration;
   const isPlaying =
     document?.mediaType === 'audio' ? audioStatus.playing : videoPlaybackState.playing;
+
+  const timestampMarkers = useMemo(() => extractTimestampMarkers(noteText), [noteText]);
 
   const load = useCallback(async () => {
     if (!user || typeof id !== 'string') return;
@@ -121,6 +138,10 @@ export default function StudioDocumentScreen() {
         setTitle(nextDocument.title);
         setDescription(nextDocument.description);
         setNoteText(nextDocument.noteText);
+        setTagValue(stringifyTags(nextDocument.tags));
+        setPlaybackRate(1);
+        setLoopEnabled(false);
+        setMuted(false);
         hydratedRef.current = false;
         requestAnimationFrame(() => {
           hydratedRef.current = true;
@@ -150,48 +171,91 @@ export default function StudioDocumentScreen() {
   }, [document?.mediaType, document?.mediaUri, videoPlayer]);
 
   useEffect(() => {
-    if (!document || !user || !hydratedRef.current) return;
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        await updateStudioDocument(user.id, document.id, {
-          description,
-          noteText,
-          title,
-        });
-      } catch (error) {
-        setFeedback(
-          error instanceof Error ? error.message : 'No pudimos guardar los cambios del documento.'
-        );
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [description, document, noteText, title, user]);
-
-  useEffect(() => {
     if (document?.mediaType === 'audio') {
-      audioPlayer.setPlaybackRate(playingRate);
+      audioPlayer.playbackRate = playbackRate;
       audioPlayer.loop = loopEnabled;
+      audioPlayer.muted = muted;
+      audioPlayer.volume = muted ? 0 : 1;
       return;
     }
 
     if (document?.mediaType === 'video') {
-      videoPlayer.playbackRate = playingRate;
+      videoPlayer.playbackRate = playbackRate;
       videoPlayer.loop = loopEnabled;
+      videoPlayer.muted = muted;
     }
-  }, [audioPlayer, document?.mediaType, loopEnabled, playingRate, videoPlayer]);
+  }, [audioPlayer, document?.mediaType, loopEnabled, muted, playbackRate, videoPlayer]);
 
-  function handleInsertTimestamp() {
-    const timestamp = formatTimestamp(currentTime || 0);
-    const insertion = `\n--------------${timestamp}--------------\n`;
-    const nextValue = `${noteText.slice(0, selection.start)}${insertion}${noteText.slice(
-      selection.end
-    )}`;
-    const caret = selection.start + insertion.length;
+  const saveNow = useCallback(async () => {
+    if (!document || !user) return;
+    setSavingState('saving');
 
-    setNoteText(nextValue);
-    setSelection({ end: caret, start: caret });
+    try {
+      const updated = await updateStudioDocument(user.id, document.id, {
+        description,
+        noteText,
+        tags: parseTags(tagValue),
+        title,
+      });
+
+      if (updated) {
+        setDocument(updated);
+      }
+      setSavingState('saved');
+      setFeedback('');
+    } catch (error) {
+      setSavingState('error');
+      setFeedback(error instanceof Error ? error.message : 'No pudimos guardar el documento.');
+    }
+  }, [description, document, noteText, tagValue, title, user]);
+
+  useEffect(() => {
+    if (!document || !user || !hydratedRef.current) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      void saveNow();
+    }, 3000);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [description, document, noteText, saveNow, tagValue, title, user]);
+
+  async function handleReplaceMedia() {
+    if (!document || !user) return;
+
+    try {
+      const nextMedia = await pickStudioMedia();
+      if (!nextMedia) return;
+
+      const updated = await replaceStudioDocumentMedia(user.id, document.id, nextMedia);
+      if (updated) {
+        setDocument(updated);
+        setFeedback('');
+      }
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : 'No pudimos reemplazar el archivo multimedia.'
+      );
+    }
+  }
+
+  function handleToolbarAction(action: StudioToolbarAction) {
+    const next = applyToolbarAction({
+      action,
+      currentSeconds: currentTime || 0,
+      selection,
+      value: noteText,
+    });
+
+    setNoteText(next.value);
+    setSelection(next.selection);
   }
 
   function handleTogglePlayback() {
@@ -232,37 +296,28 @@ export default function StudioDocumentScreen() {
   }
 
   function handleSeekBy(deltaSeconds: number) {
-    const nextPosition = Math.max(0, (currentTime || 0) + deltaSeconds);
+    const nextPosition = Math.max(0, Math.min((duration || 0) + 0.25, (currentTime || 0) + deltaSeconds));
     handleSeek(nextPosition);
   }
 
-  async function handleReplaceMedia() {
-    if (!document || !user) return;
+  async function handleExport(format: StudioExportFormat) {
+    if (!document) return;
 
     try {
-      const nextMedia = await pickStudioMedia();
-      if (!nextMedia) return;
-
-      const updated = await replaceStudioDocumentMedia(user.id, document.id, nextMedia);
-      if (updated) {
-        setDocument(updated);
-        setFeedback('');
-      }
-    } catch (error) {
-      setFeedback(
-        error instanceof Error ? error.message : 'No pudimos reemplazar el archivo multimedia.'
+      await exportStudioDocument(
+        {
+          ...document,
+          description,
+          noteText,
+          tags: parseTags(tagValue),
+          title,
+        },
+        format
       );
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'No pudimos exportar el documento.');
     }
   }
-
-  const mediaInfo = useMemo(() => {
-    if (!document) return 'Sin medio asociado';
-    if (!document.mediaType) return 'Documento sin medio';
-
-    return `${document.mediaType.toUpperCase()} · ${document.mediaName || 'archivo'} · ${formatMediaSize(
-      document.mediaSizeBytes
-    )}`;
-  }, [document]);
 
   if (loading) {
     return (
@@ -291,131 +346,50 @@ export default function StudioDocumentScreen() {
     );
   }
 
-  const sidePanel = (
-    <GlassCard style={[styles.sidePanel, !isTablet && styles.sidePanelStacked]}>
-      <Text style={styles.sidePanelTitle}>Panel del documento</Text>
-      <Text style={styles.sidePanelCopy}>
-        Cambia el titulo, describe el contexto y reemplaza el archivo si subiste la version
-        equivocada.
-      </Text>
-
-      {document.mediaType === 'video' && document.mediaUri ? (
-        <View style={styles.videoPreviewFrame}>
-          <VideoView
-            allowsFullscreen={false}
-            allowsPictureInPicture={false}
-            nativeControls={false}
-            player={videoPlayer}
-            style={styles.videoPreview}
-          />
-        </View>
-      ) : null}
-
+  const panelContent = (
+    <View style={styles.panelContent}>
       {document.mediaType === 'image' && document.mediaUri ? (
         <Image contentFit="cover" source={{ uri: document.mediaUri }} style={styles.imagePreview} />
       ) : null}
 
-      <View style={styles.formSection}>
-        <TextField
-          label="Titulo"
-          onChangeText={setTitle}
-          placeholder="Nombre del documento"
-          value={title}
-        />
-        <TextField
-          label="Descripcion"
-          onChangeText={setDescription}
-          placeholder="Contexto corto del material"
-          value={description}
-        />
-      </View>
+      <TextField label="Title" onChangeText={setTitle} value={title} />
+      <TextField
+        label="Short description"
+        multiline
+        onChangeText={setDescription}
+        value={description}
+      />
+      <TextField label="Tags" onChangeText={setTagValue} value={tagValue} />
 
       <View style={styles.metaCard}>
-        <Text style={styles.metaLabel}>Archivo actual</Text>
-        <Text style={styles.metaValue}>{mediaInfo}</Text>
+        <Text style={styles.metaLabel}>Media reference</Text>
+        <Text style={styles.metaValue}>
+          {document.mediaName || 'Documento sin medio'} · {formatMediaSize(document.mediaSizeBytes)}
+        </Text>
         <Text style={styles.metaHint}>
-          Este material vive localmente en el dispositivo para evitar subir peso innecesario.
+          Este archivo vive localmente en el dispositivo. No estamos subiendo nada a la nube.
         </Text>
       </View>
 
       <GradientButton onPress={handleReplaceMedia} variant="ghost">
-        Subir o reemplazar archivo
+        Replace media
       </GradientButton>
 
-      {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
-    </GlassCard>
-  );
-
-  const editorColumn = (
-    <View style={styles.editorColumn}>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={styles.topIconButton}>
-          <Feather color="#FFFFFF" name="arrow-left" size={18} />
-        </Pressable>
-
-        <View style={styles.topBarCopy}>
-          <Text numberOfLines={1} style={styles.documentTitle}>
-            {title || 'Documento multimedia'}
-          </Text>
-          <Text numberOfLines={1} style={styles.documentSubtitle}>
-            {mediaInfo}
-          </Text>
+      <View style={styles.exportBlock}>
+        <Text style={styles.metaLabel}>Export</Text>
+        <View style={styles.exportRow}>
+          <FilterChip onPress={() => void handleExport('txt')}>TXT</FilterChip>
+          <FilterChip onPress={() => void handleExport('md')}>MD</FilterChip>
+          <FilterChip onPress={() => void handleExport('pdf')}>PDF</FilterChip>
         </View>
       </View>
 
-      <View style={styles.toolbarRow}>
-        <MediaToolbarChip icon="clock" label="Insertar timestamp" onPress={handleInsertTimestamp} />
-        <MediaToolbarChip
-          active={loopEnabled}
-          icon="repeat"
-          label={loopEnabled ? 'Loop activo' : 'Loop'}
-          onPress={() => setLoopEnabled((current) => !current)}
-        />
-        {[0.5, 1, 1.5, 2].map((rate) => (
-          <MediaToolbarChip
-            active={playingRate === rate}
-            key={rate}
-            label={`${rate}x`}
-            onPress={() => setPlayingRate(rate)}
-          />
-        ))}
-      </View>
-
-      <GlassCard style={styles.editorCard}>
-        <Text style={styles.editorHint}>
-          Escribe la letra, notas de referencia o ideas. Cuando quieras marcar un momento exacto,
-          usa el boton de timestamp arriba.
+      <View style={styles.placeholderCard}>
+        <Text style={styles.placeholderTitle}>Perfil Público Opcional — ✦ PRONTO</Text>
+        <Text style={styles.placeholderCopy}>
+          Primero pulimos el documento multimedia y la experiencia tablet-first.
         </Text>
-        <TextInput
-          multiline
-          onChangeText={setNoteText}
-          onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
-          placeholder={`--------------02:15--------------\nen esta parte quiero incluir gritos de publico`}
-          placeholderTextColor="rgba(156,167,198,0.45)"
-          selection={selection}
-          style={styles.editorInput}
-          textAlignVertical="top"
-          value={noteText}
-        />
-      </GlassCard>
-
-      {document.mediaType === 'audio' || document.mediaType === 'video' ? (
-        <MediaPlayerBar
-          currentTime={currentTime || 0}
-          duration={duration || 0}
-          onSeek={handleSeek}
-          onSeekBy={handleSeekBy}
-          onTogglePlay={handleTogglePlayback}
-          playing={Boolean(isPlaying)}
-        />
-      ) : (
-        <GlassCard style={styles.imagePlayerHint}>
-          <Text style={styles.imagePlayerHintText}>
-            Las imagenes no necesitan timeline, pero puedes seguir desarrollando notas y contexto
-            mientras la vista queda disponible al costado.
-          </Text>
-        </GlassCard>
-      )}
+      </View>
     </View>
   );
 
@@ -425,18 +399,177 @@ export default function StudioDocumentScreen() {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardArea}>
-          {isTablet ? (
-            <View style={styles.workspaceTablet}>
-              {editorColumn}
-              {sidePanel}
+          <View style={styles.topBar}>
+            <Pressable onPress={() => router.back()} style={styles.topIconButton}>
+              <Feather color={creatorTheme.text} name="arrow-left" size={18} />
+            </Pressable>
+
+            <View style={styles.topBarCopy}>
+              <Text numberOfLines={1} style={styles.documentTitle}>
+                {title || 'Documento multimedia'}
+              </Text>
+              <Text numberOfLines={1} style={styles.documentSubtitle}>
+                {profile?.display_name || 'Creator'} · {document.mediaType || 'text-only'} ·{' '}
+                {savingState === 'saving'
+                  ? 'saving...'
+                  : savingState === 'saved'
+                    ? 'saved'
+                    : savingState === 'error'
+                      ? 'error'
+                      : 'ready'}
+              </Text>
             </View>
-          ) : (
-            <ScrollView contentContainerStyle={styles.workspaceMobile}>
-              {editorColumn}
-              {sidePanel}
+
+            {!isTablet ? (
+              <Pressable onPress={() => setDrawerOpen(true)} style={styles.topIconButton}>
+                <Feather color={creatorTheme.text} name="menu" size={18} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View style={styles.toolbarStrip}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.toolbarRow}>
+                <ToolbarButton
+                  icon="clock"
+                  label="Insert Timestamp"
+                  onPress={() => handleToolbarAction('timestamp')}
+                  primary
+                />
+                <ToolbarButton
+                  icon="flag"
+                  label="Mark"
+                  onPress={() => handleToolbarAction('mark')}
+                />
+                <ToolbarButton
+                  icon="zap"
+                  label="Quick Idea"
+                  onPress={() => handleToolbarAction('idea')}
+                />
+                <ToolbarButton
+                  icon="sun"
+                  label="Highlight"
+                  onPress={() => handleToolbarAction('highlight')}
+                />
+                <ToolbarButton
+                  active={loopEnabled}
+                  icon="repeat"
+                  label="Loop"
+                  onPress={() => setLoopEnabled((current) => !current)}
+                />
+                <ToolbarButton icon="save" label="Save" onPress={() => void saveNow()} />
+              </View>
             </ScrollView>
-          )}
+          </View>
+
+          <View style={[styles.workspace, isTablet && styles.workspaceTablet]}>
+            <View style={styles.editorColumn}>
+              {timestampMarkers.length ? (
+                <View style={styles.markerRail}>
+                  <Text style={styles.markerRailLabel}>Jump to timestamps</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.markerChipsRow}>
+                      {timestampMarkers.map((marker) => (
+                        <Pressable
+                          key={marker.id}
+                          onPress={() => handleSeek(marker.seconds)}
+                          style={styles.markerChip}>
+                          <Text style={styles.markerChipText}>{marker.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              <View style={styles.editorCard}>
+                <TextInput
+                  multiline
+                  onChangeText={setNoteText}
+                  onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
+                  placeholder={`${formatSecondsToClock(135)}\nUsa Insert Timestamp para fijar segundos exactos y seguir escribiendo.`}
+                  placeholderTextColor={creatorTheme.textSubtle}
+                  selection={selection}
+                  style={styles.editorInput}
+                  textAlignVertical="top"
+                  value={noteText}
+                />
+              </View>
+
+              {parseTags(tagValue).length ? (
+                <View style={styles.tagRow}>
+                  {parseTags(tagValue).map((tag) => (
+                    <TagPill key={tag} label={tag} />
+                  ))}
+                </View>
+              ) : null}
+
+              {document.mediaType === 'video' && document.mediaUri ? (
+                <Pressable
+                  onPress={() => setVideoExpanded((current) => !current)}
+                  style={[styles.videoFrame, videoExpanded && styles.videoFrameExpanded]}>
+                  <VideoView
+                    allowsFullscreen={false}
+                    allowsPictureInPicture={false}
+                    nativeControls={false}
+                    player={videoPlayer}
+                    style={styles.videoPreview}
+                  />
+                  <View style={styles.videoOverlay}>
+                    <Text style={styles.videoOverlayText}>
+                      {videoExpanded ? 'Tap para colapsar video' : 'Tap para expandir video'}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
+
+              {document.mediaType === 'audio' || document.mediaType === 'video' ? (
+                <MediaPlayerBar
+                  currentTime={currentTime || 0}
+                  duration={duration || 0}
+                  mediaType={document.mediaType}
+                  muted={muted}
+                  onRestart={() => handleSeek(0)}
+                  onSeek={handleSeek}
+                  onSeekBy={handleSeekBy}
+                  onToggleMute={() => setMuted((current) => !current)}
+                  onTogglePlay={handleTogglePlayback}
+                  playbackRate={playbackRate}
+                  playing={Boolean(isPlaying)}
+                  setPlaybackRate={setPlaybackRate}
+                  waveformData={document.waveformData}
+                />
+              ) : (
+                <View style={styles.imagePlayerHint}>
+                  <Text style={styles.imagePlayerHintText}>
+                    Las imágenes no necesitan timeline abajo. La referencia se mantiene al costado
+                    y el documento queda libre para describirla.
+                  </Text>
+                </View>
+              )}
+
+              {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
+            </View>
+
+            {isTablet ? <View style={styles.sidePanel}>{panelContent}</View> : null}
+          </View>
         </KeyboardAvoidingView>
+
+        {!isTablet ? (
+          <Modal animationType="slide" onRequestClose={() => setDrawerOpen(false)} transparent visible={drawerOpen}>
+            <View style={styles.drawerBackdrop}>
+              <View style={styles.drawerSheet}>
+                <View style={styles.drawerHeader}>
+                  <Text style={styles.drawerTitle}>Document panel</Text>
+                  <Pressable onPress={() => setDrawerOpen(false)} style={styles.topIconButton}>
+                    <Feather color={creatorTheme.text} name="x" size={18} />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={styles.drawerScroll}>{panelContent}</ScrollView>
+              </View>
+            </View>
+          </Modal>
+        ) : null}
       </SafeAreaView>
     </LinearGradient>
   );
@@ -452,63 +585,100 @@ const styles = StyleSheet.create({
   },
   centeredTitle: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 22,
-    fontWeight: '900',
   },
   documentSubtitle: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontMono,
     fontSize: 12,
     marginTop: 4,
   },
   documentTitle: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 20,
-    fontWeight: '900',
+  },
+  drawerBackdrop: {
+    backgroundColor: 'rgba(15, 14, 12, 0.72)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  drawerHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  drawerScroll: {
+    paddingBottom: 24,
+  },
+  drawerSheet: {
+    backgroundColor: creatorTheme.backgroundElevated,
+    borderTopLeftRadius: creatorTheme.radiusXl,
+    borderTopRightRadius: creatorTheme.radiusXl,
+    borderWidth: 1,
+    borderColor: creatorTheme.border,
+    minHeight: '68%',
+    padding: 20,
+  },
+  drawerTitle: {
+    color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
+    fontSize: 20,
   },
   editorCard: {
+    backgroundColor: creatorTheme.white,
+    borderRadius: creatorTheme.radiusXl,
     flex: 1,
-    gap: 12,
-    minHeight: 320,
-    paddingBottom: 12,
+    minHeight: 340,
+    overflow: 'hidden',
+    padding: 18,
   },
   editorColumn: {
-    flex: 1.35,
+    flex: 1,
     gap: 14,
-  },
-  editorHint: {
-    color: creatorTheme.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
   },
   editorInput: {
-    color: creatorTheme.text,
+    color: '#181512',
     flex: 1,
-    fontSize: 24,
-    fontWeight: '500',
-    lineHeight: 34,
-    minHeight: 320,
-    paddingBottom: 12,
+    fontFamily: creatorTheme.fontBody,
+    fontSize: 26,
+    lineHeight: 38,
+    minHeight: 340,
+    textAlignVertical: 'top',
+  },
+  exportBlock: {
+    gap: 10,
+  },
+  exportRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   feedback: {
-    color: creatorTheme.textMuted,
+    color: creatorTheme.warm,
+    fontFamily: creatorTheme.fontUiMedium,
     lineHeight: 20,
-  },
-  formSection: {
-    gap: 14,
   },
   gradient: {
     flex: 1,
   },
   imagePlayerHint: {
-    paddingVertical: 14,
+    backgroundColor: creatorTheme.panel,
+    borderColor: creatorTheme.border,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    padding: 14,
   },
   imagePlayerHintText: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontUiMedium,
     fontSize: 13,
     lineHeight: 19,
   },
   imagePreview: {
-    borderRadius: 18,
+    borderRadius: creatorTheme.radiusLg,
     height: 180,
     overflow: 'hidden',
     width: '100%',
@@ -516,122 +686,199 @@ const styles = StyleSheet.create({
   keyboardArea: {
     flex: 1,
   },
-  metaCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: creatorTheme.border,
-    borderRadius: 18,
+  markerChip: {
+    backgroundColor: 'rgba(232, 168, 76, 0.12)',
+    borderColor: 'rgba(232, 168, 76, 0.4)',
+    borderRadius: 999,
     borderWidth: 1,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  markerChipText: {
+    color: creatorTheme.amber,
+    fontFamily: creatorTheme.fontMonoMedium,
+    fontSize: 12,
+  },
+  markerChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  markerRail: {
+    backgroundColor: creatorTheme.panel,
+    borderColor: creatorTheme.border,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
+  },
+  markerRailLabel: {
+    color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontMono,
+    fontSize: 11,
+    textTransform: 'uppercase',
+  },
+  metaCard: {
+    backgroundColor: creatorTheme.panelSoft,
+    borderColor: creatorTheme.border,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    gap: 8,
     padding: 14,
   },
   metaHint: {
     color: creatorTheme.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
+    fontFamily: creatorTheme.fontUiMedium,
+    fontSize: 13,
+    lineHeight: 19,
   },
   metaLabel: {
     color: creatorTheme.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
+    fontFamily: creatorTheme.fontMono,
+    fontSize: 11,
     textTransform: 'uppercase',
   },
   metaValue: {
     color: creatorTheme.text,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 21,
+    fontFamily: creatorTheme.fontUiSemiBold,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  panelContent: {
+    gap: 14,
+  },
+  placeholderCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: creatorTheme.borderSoft,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    gap: 8,
+    opacity: 0.8,
+    padding: 14,
+  },
+  placeholderCopy: {
+    color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontUiMedium,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  placeholderTitle: {
+    color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
+    fontSize: 16,
   },
   safeArea: {
     flex: 1,
   },
   sidePanel: {
-    flex: 0.8,
-    gap: 14,
-    maxWidth: 340,
-    minWidth: 280,
+    backgroundColor: creatorTheme.panel,
+    borderColor: creatorTheme.border,
+    borderRadius: creatorTheme.radiusXl,
+    borderWidth: 1,
+    padding: 16,
+    width: 260,
   },
-  sidePanelCopy: {
-    color: creatorTheme.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  sidePanelStacked: {
-    maxWidth: undefined,
-    minWidth: undefined,
-  },
-  sidePanelTitle: {
-    color: creatorTheme.text,
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  toolbarChip: {
+  toolbarButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: creatorTheme.panelSoft,
+    borderColor: creatorTheme.borderSoft,
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  toolbarChipActive: {
-    backgroundColor: '#E7EEFF',
-    borderColor: '#E7EEFF',
+  toolbarButtonActive: {
+    backgroundColor: 'rgba(232, 168, 76, 0.12)',
+    borderColor: 'rgba(232, 168, 76, 0.5)',
   },
-  toolbarChipPressed: {
-    opacity: 0.92,
+  toolbarButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
-  toolbarChipText: {
+  toolbarButtonPrimary: {
+    backgroundColor: creatorTheme.amber,
+    borderColor: creatorTheme.amberDim,
+  },
+  toolbarButtonText: {
     color: creatorTheme.textMuted,
-    fontSize: 13,
-    fontWeight: '800',
+    fontFamily: creatorTheme.fontMonoMedium,
+    fontSize: 11,
   },
-  toolbarChipTextActive: {
-    color: '#0D1324',
+  toolbarButtonTextActive: {
+    color: creatorTheme.black,
   },
   toolbarRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
+  },
+  toolbarStrip: {
+    paddingHorizontal: 18,
+    paddingTop: 10,
   },
   topBar: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: 10,
   },
   topBarCopy: {
     flex: 1,
   },
   topIconButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: creatorTheme.panel,
+    borderColor: creatorTheme.border,
     borderRadius: 999,
     borderWidth: 1,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
-  videoPreview: {
-    height: '100%',
-    width: '100%',
-  },
-  videoPreviewFrame: {
-    borderRadius: 18,
-    height: 190,
+  videoFrame: {
+    borderColor: creatorTheme.border,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    height: 118,
     overflow: 'hidden',
-    width: '100%',
+    position: 'relative',
   },
-  workspaceMobile: {
-    gap: 16,
+  videoFrameExpanded: {
+    height: 224,
+  },
+  videoOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 14, 12, 0.38)',
+    bottom: 0,
+    justifyContent: 'flex-end',
+    left: 0,
+    padding: 10,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  videoOverlayText: {
+    color: creatorTheme.text,
+    fontFamily: creatorTheme.fontMono,
+    fontSize: 11,
+  },
+  videoPreview: {
+    flex: 1,
+  },
+  workspace: {
+    flex: 1,
+    gap: 14,
     padding: 18,
-    paddingBottom: 120,
   },
   workspaceTablet: {
-    flex: 1,
     flexDirection: 'row',
-    gap: 16,
-    padding: 18,
+    paddingBottom: 14,
   },
 });

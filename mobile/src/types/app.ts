@@ -64,6 +64,12 @@ export type StudioMediaType = 'audio' | 'image' | 'video';
 
 export type StudioMediaSource = 'recorded' | 'upload';
 
+export type StudioMediaFilter = 'all' | StudioMediaType | 'text-only';
+
+export type StudioToolbarAction = 'timestamp' | 'mark' | 'idea' | 'highlight';
+
+export type StudioExportFormat = 'md' | 'pdf' | 'txt';
+
 export type StudioMediaDraft = {
   mediaType: StudioMediaType;
   mimeType: string | null;
@@ -84,9 +90,19 @@ export type StudioDocument = {
   mediaType: StudioMediaType | null;
   mediaUri: string | null;
   noteText: string;
+  tags: string[];
   title: string;
   updatedAt: string;
   userId: string;
+  waveformData: number[];
+};
+
+export type StudioMarker = {
+  id: string;
+  label: string;
+  lineIndex: number;
+  seconds: number;
+  text: string;
 };
 
 export type StudioDashboardSnapshot = {

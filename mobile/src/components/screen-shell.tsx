@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   content: {
     gap: 18,
     padding: 20,
-    paddingBottom: 96,
+    paddingBottom: 128,
   },
   gradient: {
     flex: 1,
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
   },
   heading: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiExtraBold,
     fontSize: 34,
-    fontWeight: '900',
     letterSpacing: -1.2,
   },
   safeArea: {
@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
   },
   subheading: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontUiMedium,
     fontSize: 15,
     lineHeight: 22,
   },

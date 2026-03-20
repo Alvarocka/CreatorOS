@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   ghostButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: creatorTheme.panelSoft,
     borderColor: creatorTheme.border,
     borderRadius: 999,
     borderWidth: 1,
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
   },
   ghostText: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 16,
-    fontWeight: '800',
   },
   gradient: {
     alignItems: 'center',
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   innerGlow: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
     height: 14,
     position: 'absolute',
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
   },
   text: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiExtraBold,
     fontSize: 16,
-    fontWeight: '900',
     letterSpacing: -0.2,
   },
 });

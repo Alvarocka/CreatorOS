@@ -5,7 +5,7 @@ import { creatorTheme } from '@/src/lib/theme';
 import { useAuth } from '@/src/providers/auth-provider';
 
 export default function EntryIndex() {
-  const { initialized, isConfigured, session } = useAuth();
+  const { initialized } = useAuth();
 
   if (!initialized) {
     return (
@@ -19,14 +19,6 @@ export default function EntryIndex() {
         <ActivityIndicator color="#FFFFFF" size="large" />
       </View>
     );
-  }
-
-  if (!isConfigured) {
-    return <Redirect href="/(auth)/setup" />;
-  }
-
-  if (!session) {
-    return <Redirect href="/(auth)/login" />;
   }
 
   return <Redirect href="/(app)/(tabs)" />;

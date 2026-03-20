@@ -7,6 +7,7 @@ import { AvatarBadge } from '@/src/components/avatar-badge';
 import { CompactStatPill } from '@/src/components/compact-stat-pill';
 import { GlassCard } from '@/src/components/glass-card';
 import { GradientButton } from '@/src/components/gradient-button';
+import { SearchInput } from '@/src/components/search-input';
 import { ScreenShell } from '@/src/components/screen-shell';
 import { StudioDocumentCard } from '@/src/components/studio-document-card';
 import { fetchStudioDashboardSnapshot } from '@/src/lib/studio-documents';
@@ -51,16 +52,21 @@ export default function HomeScreen() {
       onRefresh={load}
       refreshing={loading}
       rightSlot={<AvatarBadge label={profile?.display_name || profile?.username || 'CreatorOS'} />}
-      subheading="Tu estudio movil para capturar audio, imagen o video y desarrollar la idea mientras el material sigue vivo.">
+      subheading="Tu estudio local para capturar material, escribir encima y volver exactamente al momento que importa.">
+      <SearchInput
+        onTouchStart={() => router.push('/(app)/(tabs)/library')}
+        placeholder="Buscar documentos, tags o ideas..."
+      />
+
       <GlassCard style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>CreatorOS para tablet y movil</Text>
-        <Text style={styles.heroTitle}>Captura rapido. Reproduce abajo. Escribe encima.</Text>
+        <Text style={styles.heroEyebrow}>Local-first studio</Text>
+        <Text style={styles.heroTitle}>Quick Capture manda. El documento es el centro.</Text>
         <Text style={styles.heroCopy}>
-          Este flujo esta pensado para abrir un audio o video, tomar notas con timestamps y
-          volver al momento exacto sin perderte en menus.
+          Sube un audio, grábalo en el momento o toma una referencia visual. Luego abre un
+          documento donde puedes marcar segundos exactos, ideas rápidas y notas de producción.
         </Text>
         <GradientButton
-          onPress={() => router.push('/(app)/(tabs)/capture')}
+          onPress={() => router.push('/(app)/capture-modal')}
           size="large"
           style={styles.heroButton}>
           CAPTURA RAPIDA
@@ -79,7 +85,8 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>Documentos recientes</Text>
             <Text style={styles.sectionCopy}>
-              Lo último que abriste para escribir, marcar y seguir desarrollando.
+              Lo último que abriste para escribir, marcar y seguir desarrollando sin perder el
+              hilo.
             </Text>
           </View>
           <GradientButton
@@ -106,10 +113,10 @@ export default function HomeScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Tu primer documento multimedia parte aqui</Text>
             <Text style={styles.emptyCopy}>
-              Sube un audio o graba una idea, luego escribe la letra, notas mentales o marcas
-              exactas mientras el player sigue abajo.
+              Quick Capture te lleva directo al flujo importante: medio arriba, documento vivo y
+              player abajo.
             </Text>
-            <GradientButton onPress={() => router.push('/(app)/(tabs)/capture')}>
+            <GradientButton onPress={() => router.push('/(app)/capture-modal')}>
               Crear documento
             </GradientButton>
           </View>
@@ -145,8 +152,8 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 18,
-    fontWeight: '900',
     textAlign: 'center',
   },
   heroButton: {
@@ -158,20 +165,21 @@ const styles = StyleSheet.create({
   },
   heroCopy: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontUiMedium,
     fontSize: 15,
     lineHeight: 22,
   },
   heroEyebrow: {
-    color: creatorTheme.orange,
+    color: creatorTheme.amber,
+    fontFamily: creatorTheme.fontMonoMedium,
     fontSize: 12,
-    fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   heroTitle: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiExtraBold,
     fontSize: 30,
-    fontWeight: '900',
     letterSpacing: -1.1,
     lineHeight: 34,
   },
@@ -180,6 +188,7 @@ const styles = StyleSheet.create({
   },
   sectionCopy: {
     color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontUiMedium,
     fontSize: 14,
     lineHeight: 21,
     marginTop: 6,
@@ -191,8 +200,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
     fontSize: 22,
-    fontWeight: '900',
     letterSpacing: -0.8,
   },
   statsRow: {

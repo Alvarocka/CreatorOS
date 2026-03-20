@@ -1,13 +1,17 @@
-import { Redirect, Stack } from 'expo-router';
-
-import { useAuth } from '@/src/providers/auth-provider';
+import { Stack } from 'expo-router';
 
 export default function AppLayout() {
-  const { initialized, session } = useAuth();
-
-  if (initialized && !session) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="capture-modal"
+        options={{
+          animation: 'slide_from_bottom',
+          presentation: 'fullScreenModal',
+        }}
+      />
+      <Stack.Screen name="studio/[id]" />
+    </Stack>
+  );
 }

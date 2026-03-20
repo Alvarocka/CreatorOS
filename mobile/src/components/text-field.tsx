@@ -23,11 +23,12 @@ export function TextField({
 
 const styles = StyleSheet.create({
   input: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: creatorTheme.panelSoft,
     borderColor: creatorTheme.border,
-    borderRadius: 18,
+    borderRadius: creatorTheme.radiusLg,
     borderWidth: 1,
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiMedium,
     fontSize: 16,
     minHeight: 52,
     paddingHorizontal: 16,
@@ -35,8 +36,8 @@ const styles = StyleSheet.create({
   },
   label: {
     color: creatorTheme.text,
+    fontFamily: creatorTheme.fontMonoMedium,
     fontSize: 14,
-    fontWeight: '700',
     marginBottom: 8,
   },
   textarea: {
