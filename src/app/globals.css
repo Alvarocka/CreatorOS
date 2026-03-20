@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 226 45% 7%;
+    --foreground: 0 0% 100%;
+    --card: 228 28% 12%;
+    --card-foreground: 0 0% 100%;
+    --primary: 335 100% 54%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 227 24% 18%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 225 19% 16%;
+    --muted-foreground: 221 18% 72%;
+    --accent: 222 88% 56%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 5 84% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 223 22% 22%;
+    --input: 223 22% 22%;
+    --ring: 335 100% 54%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    position: relative;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 14% 18%, rgba(37, 99, 255, 0.22), transparent 20%),
+      radial-gradient(circle at 80% 14%, rgba(255, 0, 130, 0.16), transparent 20%),
+      radial-gradient(circle at 85% 82%, rgba(255, 138, 0, 0.12), transparent 18%),
+      linear-gradient(180deg, rgba(10, 14, 28, 0.98), rgba(5, 8, 17, 1));
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+    background:
+      radial-gradient(circle at 10% 15%, rgba(255, 255, 255, 0.18) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 30% 35%, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 65% 22%, rgba(255, 255, 255, 0.14) 0 1.5px, transparent 2px),
+      radial-gradient(circle at 88% 42%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 55% 78%, rgba(255, 255, 255, 0.1) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 22% 68%, rgba(255, 255, 255, 0.1) 0 1.5px, transparent 2px);
+    opacity: 0.55;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(circle at 15% 30%, rgba(255, 255, 255, 0.05), transparent 18%),
+      radial-gradient(circle at 85% 22%, rgba(255, 255, 255, 0.04), transparent 16%),
+      radial-gradient(circle at 76% 80%, rgba(255, 255, 255, 0.04), transparent 18%),
+      radial-gradient(circle at 18% 82%, rgba(255, 255, 255, 0.03), transparent 16%);
+    filter: blur(12px);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight text-foreground;
+  }
+
+  ::selection {
+    background: rgba(255, 30, 155, 0.3);
+  }
+}
+
+@layer components {
+  .container-shell {
+    @apply mx-auto w-full max-w-[1480px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .glass-panel {
+    @apply rounded-[30px] border border-white/10 bg-white/[0.04] shadow-cosmic backdrop-blur-2xl;
+  }
+
+  .section-title {
+    @apply text-balance text-3xl font-black leading-tight text-white md:text-5xl;
+  }
+
+  .section-copy {
+    @apply max-w-2xl text-sm leading-7 text-muted-foreground md:text-base;
+  }
+
+  .paper-grid {
+    background-image: theme("backgroundImage.paper-grid");
+    background-size: 22px 22px;
+  }
+
+  .neon-outline {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 18px 35px rgba(1, 6, 18, 0.45);
+  }
+}
