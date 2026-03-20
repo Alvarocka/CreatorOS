@@ -1,40 +1,34 @@
-import { File } from 'expo-file-system';
-
 const DEFAULT_BAR_COUNT = 56;
 
 export async function computeWaveformData(uri: string, barCount = DEFAULT_BAR_COUNT) {
   try {
-    const file = new File(uri);
-    const bytes = await file.bytes();
-
-    if (!bytes.length) {
-      return buildPlaceholderWaveform(barCount);
-    }
-
-    const step = Math.max(1, Math.floor(bytes.length / barCount));
-    const values: number[] = [];
-
-    for (let index = 0; index < barCount; index += 1) {
-      const start = index * step;
-      const end = Math.min(bytes.length, start + step);
-
-      let sum = 0;
-      let samples = 0;
-      const sampleStep = Math.max(1, Math.floor(step / 28));
-
-      for (let cursor = start; cursor < end; cursor += sampleStep) {
-        sum += Math.abs(bytes[cursor] - 128) / 128;
-        samples += 1;
-      }
-
-      values.push(samples ? sum / samples : 0.15);
-    }
-
-    const peak = Math.max(...values, 0.25);
-    return values.map((value) => Math.max(0.16, Math.min(1, value / peak)));
+    return buildSeededWaveform(uri, barCount);
   } catch {
     return buildPlaceholderWaveform(barCount);
   }
+}
+
+function hashString(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash || 1;
+}
+
+export function buildSeededWaveform(seedInput: string, barCount = DEFAULT_BAR_COUNT) {
+  let seed = hashString(seedInput);
+
+  return Array.from({ length: barCount }, (_, index) => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const normalized = seed / 0xffffffff;
+    const wave = Math.sin(index / 3.5 + normalized * Math.PI) * 0.18;
+    const curve = Math.cos(index / 7.2 + normalized * 2.4) * 0.1;
+    const base = 0.42 + wave + curve + normalized * 0.16;
+    return Math.max(0.18, Math.min(0.92, base));
+  });
 }
 
 export function buildPlaceholderWaveform(barCount = DEFAULT_BAR_COUNT) {
