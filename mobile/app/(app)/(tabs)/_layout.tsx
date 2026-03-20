@@ -1,3 +1,4 @@
+import { StyleSheet, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
@@ -20,7 +21,7 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#0D1324',
           borderTopColor: 'rgba(255,255,255,0.08)',
-          height: 82,
+          height: 84,
           paddingTop: 8,
         },
       }}>
@@ -46,7 +47,9 @@ export default function TabsLayout() {
         name="capture"
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Feather color={color} name="plus-circle" size={size} />
+            <View style={styles.captureTabIcon}>
+              <Feather color={color} name="plus" size={size} />
+            </View>
           ),
           title: 'Captura',
         }}
@@ -72,3 +75,16 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  captureTabIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(243, 154, 74, 0.14)',
+    borderColor: 'rgba(243, 154, 74, 0.32)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+});

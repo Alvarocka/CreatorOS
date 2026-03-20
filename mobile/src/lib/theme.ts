@@ -7,17 +7,17 @@ export const creatorTheme = {
   border: 'rgba(255, 255, 255, 0.10)',
   text: '#FFFFFF',
   textMuted: '#9CA7C6',
-  pink: '#FF2C96',
-  orange: '#FF7A00',
-  blue: '#2563FF',
-  green: '#26C55E',
-  yellow: '#FFC93C',
+  pink: '#F56A8C',
+  orange: '#F39A4A',
+  blue: '#5B8DFF',
+  green: '#4CCB87',
+  yellow: '#FFC25C',
 };
 
 export const creatorGradients = {
   background: ['#070A14', '#0E1530', '#060913'] as const,
-  primary: ['#FF7A00', '#FF2C96', '#7C3AED'] as const,
-  info: ['#1D4ED8', '#2563FF', '#153B9F'] as const,
-  success: ['#1E9D47', '#26C55E', '#0C7D39'] as const,
-  warning: ['#FFB000', '#FF7A00', '#FF5E00'] as const,
+  primary: ['#F39A4A', '#F56A8C', '#835DFF'] as const,
+  info: ['#3557C9', '#5B8DFF', '#243D8F'] as const,
+  success: ['#197E4E', '#3BB774', '#115B3B'] as const,
+  warning: ['#D89B35', '#F39A4A', '#C76B2B'] as const,
 };

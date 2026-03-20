@@ -59,3 +59,40 @@ export type DashboardSnapshot = {
   readyCount: number;
   uncategorizedCount: number;
 };
+
+export type StudioMediaType = 'audio' | 'image' | 'video';
+
+export type StudioMediaSource = 'recorded' | 'upload';
+
+export type StudioMediaDraft = {
+  mediaType: StudioMediaType;
+  mimeType: string | null;
+  name: string;
+  sizeBytes: number | null;
+  source: StudioMediaSource;
+  uri: string;
+};
+
+export type StudioDocument = {
+  createdAt: string;
+  description: string;
+  id: string;
+  mediaMimeType: string | null;
+  mediaName: string | null;
+  mediaSizeBytes: number | null;
+  mediaSource: StudioMediaSource | null;
+  mediaType: StudioMediaType | null;
+  mediaUri: string | null;
+  noteText: string;
+  title: string;
+  updatedAt: string;
+  userId: string;
+};
+
+export type StudioDashboardSnapshot = {
+  audioCount: number;
+  imageCount: number;
+  recentDocuments: StudioDocument[];
+  totalCount: number;
+  videoCount: number;
+};

@@ -24,7 +24,7 @@ export default function SettingsScreen() {
   return (
     <ScreenShell
       heading="Ajustes"
-      subheading="Tu identidad, acceso y la base de configuracion para la siguiente fase movil de CreatorOS.">
+      subheading="Base de cuenta, estado del dispositivo y lo que dejamos en pausa para mantener el foco en el documento multimedia.">
       <GlassCard>
         <View style={styles.profileHeader}>
           <AvatarBadge label={profile?.display_name || profile?.username || user?.email} />
@@ -36,16 +36,21 @@ export default function SettingsScreen() {
             <Text style={styles.profileMeta}>{user?.email}</Text>
           </View>
         </View>
+      </GlassCard>
+
+      <GlassCard>
+        <Text style={styles.sectionTitle}>Modo documento local</Text>
         <Text style={styles.bio}>
-          {profile?.bio ||
-            'La siguiente iteracion movil agregara edicion de perfil, idioma, notificaciones y preferencias offline.'}
+          Los audios, videos e imagenes capturados desde movil viven localmente en este dispositivo
+          por ahora. La idea es ayudarte a trabajar rapido sin subir peso innecesario a la nube.
         </Text>
       </GlassCard>
 
       <GlassCard>
-        <Text style={styles.sectionTitle}>Estado de la base movil</Text>
+        <Text style={styles.sectionTitle}>Perfil publico opcional pronto</Text>
         <Text style={styles.bio}>
-          Esta primera base nativa ya contempla auth, tabs, dashboard, biblioteca, captura y proyectos. El siguiente salto es sumar camara, voz, uploads y sync offline.
+          La vitrina publica queda congelada en esta fase. Primero vamos a pulir la experiencia de
+          capturar, reproducir y escribir al mismo tiempo.
         </Text>
       </GlassCard>
 
