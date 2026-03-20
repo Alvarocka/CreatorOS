@@ -37,6 +37,15 @@ The MVP focuses on three jobs:
 - A creative studio feel: warm, editorial, clean, precise
 - Read/write surfaces designed for revisiting and reworking old content
 
+### Native Mobile Phase
+
+- Framework: Expo + React Native + Expo Router
+- Auth/Data: same Supabase project and schema used by the web app
+- Session persistence: AsyncStorage-backed Supabase auth on device
+- Preview delivery target: Android APK via EAS Build
+
+The mobile app lives in `mobile/` so web and native can evolve in parallel without mixing runtime assumptions.
+
 ## Route Map
 
 ### Marketing
@@ -157,3 +166,27 @@ The architecture is intentionally prepared for:
 - graph relationships between pieces
 - version history
 - native mobile client on Expo/React Native reusing Supabase and domain rules
+
+## Mobile Route Map
+
+### Auth
+
+- `/(auth)/login`
+- `/(auth)/signup`
+- `/(auth)/setup`
+
+### App
+
+- `/(app)/(tabs)` dashboard
+- `/(app)/(tabs)/library`
+- `/(app)/(tabs)/capture`
+- `/(app)/(tabs)/projects`
+- `/(app)/(tabs)/settings`
+
+## Mobile Product Intent
+
+The native app is optimized around immediacy:
+
+1. Catch the idea before it disappears.
+2. Keep the archive synced with the same CreatorOS backend.
+3. Grow toward richer native capture like camera, voice memo, files, and offline drafts.

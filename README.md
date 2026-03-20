@@ -35,6 +35,18 @@ This MVP centralizes text, notes, links, files, audio, images, videos, projects,
 - Supabase Auth + Postgres + Storage
 - Vercel-ready structure
 
+## Native mobile base
+
+This repo now also includes a dedicated Expo mobile app in `mobile/` as the starting point for the native Android and iOS phase.
+
+Current mobile base includes:
+
+- Expo Router native shell
+- Supabase auth with persisted mobile sessions
+- CreatorOS dashboard, library, projects, settings, and quick capture tabs
+- quick capture flow for `text`, `note`, and `link`
+- EAS config for preview APK generation
+
 ## Quick start
 
 1. Install dependencies
@@ -123,6 +135,10 @@ docs/
   architecture.md
 supabase/
   migrations/
+mobile/
+  app/
+  src/
+  eas.json
 ```
 
 ## Main domain model
@@ -183,6 +199,8 @@ Before deploying:
 - Expo / React Native app reusing the same Supabase backend
 - Mobile-first capture for camera, voice memo, and share-sheet ingestion
 - Offline draft queue with sync on reconnect
+
+The native mobile phase has now started inside `mobile/` with the first CreatorOS-branded Expo shell and Android preview APK config.
 
 ## Notes
 
