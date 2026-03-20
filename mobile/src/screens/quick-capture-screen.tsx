@@ -177,7 +177,7 @@ export function QuickCaptureScreen({
       setNoteText('');
       setMediaDraft(null);
 
-      router.replace(`/(app)/studio/${document.id}`);
+      router.dismissTo(`/(app)/studio/${document.id}`);
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : 'No pudimos crear tu documento multimedia.'
