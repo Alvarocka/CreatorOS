@@ -8,7 +8,6 @@ export default function AppLayout() {
         name="capture-modal"
         options={{
           animation: 'slide_from_bottom',
-          presentation: 'fullScreenModal',
         }}
       />
       <Stack.Screen name="studio/[id]" />

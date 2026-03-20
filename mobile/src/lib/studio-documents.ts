@@ -6,6 +6,7 @@ import {
   computeWaveformData,
   buildPlaceholderWaveform,
 } from '@/src/lib/studio-waveform';
+import { setStudioDebugCheckpoint } from '@/src/lib/studio-debug';
 import {
   PICKABLE_MIME_TYPES,
   formatMediaSize,
@@ -78,6 +79,11 @@ async function writeDocuments(workspaceId: string, documents: StudioDocument[]) 
 
 async function persistMediaDraft(workspaceId: string, documentId: string, draft: StudioMediaDraft) {
   validateStudioMediaDraft(draft);
+  await setStudioDebugCheckpoint('persist-media:start', {
+    documentId,
+    mediaType: draft.mediaType,
+    source: draft.source,
+  });
 
   const extension =
     getFileExtension(draft.name) ||
@@ -97,12 +103,20 @@ async function persistMediaDraft(workspaceId: string, documentId: string, draft:
     from: draft.uri,
     to: destinationUri,
   });
+  await setStudioDebugCheckpoint('persist-media:copied', {
+    destinationUri,
+    documentId,
+  });
 
   const sizeBytes = draft.sizeBytes ?? (await getFileSize(destinationUri));
   const waveformData =
     draft.mediaType === 'audio'
       ? await computeWaveformData(destinationUri)
       : buildPlaceholderWaveform(24);
+  await setStudioDebugCheckpoint('persist-media:waveform-ready', {
+    documentId,
+    mediaType: draft.mediaType,
+  });
 
   return {
     ...draft,
@@ -187,9 +201,18 @@ export async function createStudioDocument(params: {
 }) {
   const id = createStudioDocumentId();
   const now = new Date().toISOString();
+  await setStudioDebugCheckpoint('create-document:start', {
+    documentId: id,
+    hasMedia: params.mediaDraft ? 'yes' : 'no',
+    userId: params.userId,
+  });
   const persistedMedia = params.mediaDraft
     ? await persistMediaDraft(params.userId, id, params.mediaDraft)
     : null;
+  await setStudioDebugCheckpoint('create-document:media-ready', {
+    documentId: id,
+    mediaType: persistedMedia?.mediaType || 'text-only',
+  });
   const normalizedTags = Array.isArray(params.tags) ? params.tags : parseTags(params.tags || '');
 
   const document: StudioDocument = {
@@ -212,6 +235,10 @@ export async function createStudioDocument(params: {
 
   const existing = await readDocuments(params.userId);
   await writeDocuments(params.userId, [document, ...existing]);
+  await setStudioDebugCheckpoint('create-document:stored', {
+    documentId: id,
+    mediaType: document.mediaType || 'text-only',
+  });
 
   return document;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +27,11 @@ import {
   formatMediaSize,
   pickStudioMedia,
 } from '@/src/lib/studio-documents';
+import {
+  getStudioDebugCheckpoint,
+  setStudioDebugCheckpoint,
+  type StudioDebugCheckpoint,
+} from '@/src/lib/studio-debug';
 import { creatorGradients, creatorTheme } from '@/src/lib/theme';
 import { parseTags } from '@/src/lib/studio-format';
 import { useAuth } from '@/src/providers/auth-provider';
@@ -57,6 +63,7 @@ export function QuickCaptureScreen({
   const [pickingMedia, setPickingMedia] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [lastCheckpoint, setLastCheckpoint] = useState<StudioDebugCheckpoint | null>(null);
 
   const mediaLabel = useMemo(() => {
     if (!mediaDraft) return null;
@@ -138,6 +145,10 @@ export function QuickCaptureScreen({
   }
 
   useEffect(() => {
+    void getStudioDebugCheckpoint().then(setLastCheckpoint);
+  }, []);
+
+  useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
     if (recording) {
       intervalId = setInterval(() => {
@@ -162,6 +173,10 @@ export function QuickCaptureScreen({
     setFeedback('');
 
     try {
+      await setStudioDebugCheckpoint('capture:submit', {
+        hasMedia: mediaDraft ? 'yes' : 'no',
+        mediaType: mediaDraft?.mediaType || 'text-only',
+      });
       const document = await createStudioDocument({
         description,
         mediaDraft,
@@ -177,7 +192,13 @@ export function QuickCaptureScreen({
       setNoteText('');
       setMediaDraft(null);
 
-      router.dismissTo(`/(app)/studio/${document.id}`);
+      await setStudioDebugCheckpoint('capture:navigate-studio', {
+        documentId: document.id,
+      });
+      setLastCheckpoint(null);
+      InteractionManager.runAfterInteractions(() => {
+        router.replace(`/(app)/studio/${document.id}`);
+      });
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : 'No pudimos crear tu documento multimedia.'
@@ -288,6 +309,21 @@ export function QuickCaptureScreen({
           </View>
 
           {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
+          {lastCheckpoint ? (
+            <View style={styles.debugCard}>
+              <Text style={styles.debugLabel}>Last studio checkpoint</Text>
+              <Text style={styles.debugText}>
+                {lastCheckpoint.step} · {new Date(lastCheckpoint.at).toLocaleTimeString()}
+              </Text>
+              {lastCheckpoint.details ? (
+                <Text style={styles.debugDetails}>
+                  {Object.entries(lastCheckpoint.details)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(' · ')}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <GradientButton loading={saving} onPress={handleCreateDocument} size="large">
             ✦ Create document
@@ -313,6 +349,32 @@ const styles = StyleSheet.create({
     gap: 18,
     padding: 20,
     paddingBottom: 120,
+  },
+  debugCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: creatorTheme.borderSoft,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  debugDetails: {
+    color: creatorTheme.textSubtle,
+    fontFamily: creatorTheme.fontMono,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  debugLabel: {
+    color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontMonoMedium,
+    fontSize: 11,
+    textTransform: 'uppercase',
+  },
+  debugText: {
+    color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiMedium,
+    fontSize: 13,
+    lineHeight: 19,
   },
   eyebrow: {
     color: creatorTheme.amber,

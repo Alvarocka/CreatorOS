@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { createAudioPlayer } from 'expo-audio';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,6 +40,7 @@ import {
   replaceStudioDocumentMedia,
   updateStudioDocument,
 } from '@/src/lib/studio-documents';
+import { setStudioDebugCheckpoint } from '@/src/lib/studio-debug';
 import { creatorGradients, creatorTheme } from '@/src/lib/theme';
 import { useAuth } from '@/src/providers/auth-provider';
 import type { StudioDocument, StudioExportFormat, StudioToolbarAction } from '@/src/types/app';
@@ -105,13 +106,15 @@ export default function StudioDocumentScreen() {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
 
-  const audioPlayer = useMemo(() => {
+  const audioSource = useMemo(() => {
     if (!mediaPlaybackReady || document?.mediaType !== 'audio' || !document.mediaUri) {
       return null;
     }
 
-    return createAudioPlayer(document.mediaUri, { updateInterval: 250 });
+    return { uri: document.mediaUri };
   }, [document?.mediaType, document?.mediaUri, mediaPlaybackReady]);
+  const audioPlayer = useAudioPlayer(audioSource, { updateInterval: 250 });
+  const audioStatus = useAudioPlayerStatus(audioPlayer);
   const videoPlayer = useMemo(() => {
     if (!mediaPlaybackReady || document?.mediaType !== 'video' || !document.mediaUri) {
       return null;
@@ -142,6 +145,9 @@ export default function StudioDocumentScreen() {
   const load = useCallback(async () => {
     if (!user || typeof id !== 'string') return;
     setLoading(true);
+    await setStudioDebugCheckpoint('studio:load:start', {
+      documentId: id,
+    });
 
     try {
       const nextDocument = await fetchStudioDocumentById(user.id, id);
@@ -158,6 +164,10 @@ export default function StudioDocumentScreen() {
         hydratedRef.current = false;
         requestAnimationFrame(() => {
           hydratedRef.current = true;
+        });
+        await setStudioDebugCheckpoint('studio:load:document-ready', {
+          documentId: nextDocument.id,
+          mediaType: nextDocument.mediaType || 'text-only',
         });
       }
     } finally {
@@ -178,6 +188,10 @@ export default function StudioDocumentScreen() {
 
     const interaction = InteractionManager.runAfterInteractions(() => {
       setMediaPlaybackReady(true);
+      void setStudioDebugCheckpoint('studio:interaction-ready', {
+        documentId: document.id,
+        mediaType: document.mediaType || 'text-only',
+      });
     });
 
     return () => {
@@ -187,18 +201,12 @@ export default function StudioDocumentScreen() {
 
   useEffect(() => {
     return () => {
-      audioPlayer?.release();
-    };
-  }, [audioPlayer]);
-
-  useEffect(() => {
-    return () => {
       videoPlayer?.release();
     };
   }, [videoPlayer]);
 
   useEffect(() => {
-    if (document?.mediaType !== 'audio' || !audioPlayer) {
+    if (document?.mediaType !== 'audio') {
       setAudioPlaybackState({
         currentTime: 0,
         duration: 0,
@@ -207,16 +215,27 @@ export default function StudioDocumentScreen() {
       return;
     }
 
-    const interval = setInterval(() => {
-      setAudioPlaybackState({
-        currentTime: audioPlayer.currentTime || 0,
-        duration: audioPlayer.duration || 0,
-        playing: Boolean(audioPlayer.playing),
-      });
-    }, 250);
+    setAudioPlaybackState({
+      currentTime: audioStatus.currentTime || 0,
+      duration: audioStatus.duration || 0,
+      playing: Boolean(audioStatus.playing),
+    });
+  }, [
+    audioStatus.currentTime,
+    audioStatus.duration,
+    audioStatus.playing,
+    document?.mediaType,
+  ]);
 
-    return () => clearInterval(interval);
-  }, [audioPlayer, document?.mediaType, document?.mediaUri]);
+  useEffect(() => {
+    if (document?.mediaType !== 'audio' || !audioSource || !audioStatus.isLoaded) {
+      return;
+    }
+
+    void setStudioDebugCheckpoint('studio:audio:loaded', {
+      documentId: document.id,
+    });
+  }, [audioSource, audioStatus.isLoaded, document?.id, document?.mediaType]);
 
   useEffect(() => {
     if (document?.mediaType !== 'video' || !videoPlayer) {
@@ -240,7 +259,7 @@ export default function StudioDocumentScreen() {
   }, [document?.mediaType, document?.mediaUri, videoPlayer]);
 
   useEffect(() => {
-    if (document?.mediaType === 'audio' && audioPlayer?.isLoaded) {
+    if (document?.mediaType === 'audio' && audioStatus.isLoaded) {
       audioPlayer.playbackRate = playbackRate;
       audioPlayer.loop = loopEnabled;
       audioPlayer.muted = muted;
@@ -253,7 +272,15 @@ export default function StudioDocumentScreen() {
       videoPlayer.loop = loopEnabled;
       videoPlayer.muted = muted;
     }
-  }, [audioPlayer, document?.mediaType, loopEnabled, muted, playbackRate, videoPlayer]);
+  }, [
+    audioPlayer,
+    audioStatus.isLoaded,
+    document?.mediaType,
+    loopEnabled,
+    muted,
+    playbackRate,
+    videoPlayer,
+  ]);
 
   const saveNow = useCallback(async () => {
     if (!document || !user) return;
