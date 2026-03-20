@@ -84,17 +84,22 @@ export function MediaPlayerBar({
       </View>
 
       <View style={styles.controlsRow}>
-        <ControlButton active={loopEnabled} icon="repeat" onPress={onToggleLoop} />
         <ControlButton icon="skip-back" onPress={onRestart} />
         <ControlButton icon="rewind" label="5" onPress={() => onSeekBy(-5)} />
         <Pressable onPress={onTogglePlay} style={styles.playButton}>
           <Feather color={creatorTheme.black} name={playing ? 'pause' : 'play'} size={22} />
         </Pressable>
         <ControlButton icon="fast-forward" label="5" onPress={() => onSeekBy(5)} />
-        <ControlButton active={muted} icon={muted ? 'volume-x' : 'volume-2'} onPress={onToggleMute} />
+        <ControlButton icon="skip-forward" onPress={() => onSeek(safeDuration)} />
+        <ControlButton icon={muted ? 'volume-x' : 'volume-2'} onPress={onToggleMute} />
       </View>
 
       <View style={styles.speedRow}>
+        <Pressable
+          onPress={onToggleLoop}
+          style={[styles.speedChip, loopEnabled && styles.speedChipActive]}>
+          <Text style={[styles.speedText, loopEnabled && styles.speedTextActive]}>Loop</Text>
+        </Pressable>
         {SPEED_OPTIONS.map((rate) => (
           <Pressable
             key={rate}
@@ -111,20 +116,18 @@ export function MediaPlayerBar({
 }
 
 function ControlButton({
-  active,
   icon,
   label,
   onPress,
 }: {
-  active?: boolean;
   icon: keyof typeof Feather.glyphMap;
   label?: string;
   onPress?: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.controlButton, active && styles.controlButtonActive]}>
-      <Feather color={active ? creatorTheme.text : creatorTheme.textMuted} name={icon} size={18} />
-      {label ? <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text> : null}
+    <Pressable onPress={onPress} style={styles.controlButton}>
+      <Feather color={creatorTheme.textMuted} name={icon} size={18} />
+      {label ? <Text style={styles.controlLabel}>{label}</Text> : null}
     </Pressable>
   );
 }
@@ -132,28 +135,17 @@ function ControlButton({
 const styles = StyleSheet.create({
   controlButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 999,
-    borderWidth: 1,
     flexDirection: 'row',
     gap: 4,
     justifyContent: 'center',
     minWidth: 38,
-    paddingHorizontal: 10,
+    paddingHorizontal: 4,
     paddingVertical: 8,
-  },
-  controlButtonActive: {
-    backgroundColor: 'rgba(255, 79, 216, 0.18)',
-    borderColor: 'rgba(255, 79, 216, 0.4)',
   },
   controlLabel: {
     color: creatorTheme.textMuted,
     fontFamily: creatorTheme.fontMonoMedium,
     fontSize: 11,
-  },
-  controlLabelActive: {
-    color: creatorTheme.text,
   },
   controlsRow: {
     alignItems: 'center',

@@ -40,7 +40,7 @@ import {
   replaceStudioDocumentMedia,
   updateStudioDocument,
 } from '@/src/lib/studio-documents';
-import { setStudioDebugCheckpoint } from '@/src/lib/studio-debug';
+import { getStudioDebugCheckpoint, setStudioDebugCheckpoint } from '@/src/lib/studio-debug';
 import { creatorGradients, creatorTheme } from '@/src/lib/theme';
 import { useAuth } from '@/src/providers/auth-provider';
 import type { StudioDocument, StudioExportFormat, StudioToolbarAction } from '@/src/types/app';
@@ -102,6 +102,7 @@ export default function StudioDocumentScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [videoExpanded, setVideoExpanded] = useState(false);
   const [mediaPlaybackReady, setMediaPlaybackReady] = useState(false);
+  const [playerGate, setPlayerGate] = useState<'checking' | 'deferred' | 'enabled'>('checking');
   const [savingState, setSavingState] = useState<'idle' | 'saved' | 'saving' | 'error'>('idle');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
@@ -180,9 +181,38 @@ export default function StudioDocumentScreen() {
   }, [load]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function resolvePlayerGate() {
+      if (!document?.mediaType || !document.mediaUri) {
+        setPlayerGate('enabled');
+        return;
+      }
+
+      const checkpoint = await getStudioDebugCheckpoint();
+      if (cancelled) return;
+
+      const ageMs = checkpoint ? Date.now() - new Date(checkpoint.at).getTime() : Infinity;
+      const recentStudioCheckpoint =
+        checkpoint &&
+        checkpoint.step.startsWith('studio:') &&
+        checkpoint.step !== 'studio:stable' &&
+        ageMs < 1000 * 60 * 20;
+
+      setPlayerGate(recentStudioCheckpoint ? 'deferred' : 'enabled');
+    }
+
+    void resolvePlayerGate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [document?.id, document?.mediaType, document?.mediaUri]);
+
+  useEffect(() => {
     setMediaPlaybackReady(false);
 
-    if (!document?.mediaType || !document.mediaUri) {
+    if (!document?.mediaType || !document.mediaUri || playerGate !== 'enabled') {
       return;
     }
 
@@ -197,7 +227,7 @@ export default function StudioDocumentScreen() {
     return () => {
       interaction.cancel();
     };
-  }, [document?.id, document?.mediaType, document?.mediaUri]);
+  }, [document?.id, document?.mediaType, document?.mediaUri, playerGate]);
 
   useEffect(() => {
     return () => {
@@ -236,6 +266,21 @@ export default function StudioDocumentScreen() {
       documentId: document.id,
     });
   }, [audioSource, audioStatus.isLoaded, document?.id, document?.mediaType]);
+
+  useEffect(() => {
+    if (!document?.mediaType || playerGate !== 'enabled') {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      void setStudioDebugCheckpoint('studio:stable', {
+        documentId: document.id,
+        mediaType: document.mediaType || 'text-only',
+      });
+    }, 1800);
+
+    return () => clearTimeout(timeout);
+  }, [document?.id, document?.mediaType, playerGate]);
 
   useEffect(() => {
     if (document?.mediaType !== 'video' || !videoPlayer) {
@@ -622,7 +667,33 @@ export default function StudioDocumentScreen() {
                 </Pressable>
               ) : null}
 
-              {document.mediaType === 'audio' || document.mediaType === 'video' ? (
+              {playerGate === 'checking' && (document.mediaType === 'audio' || document.mediaType === 'video') ? (
+                <View style={styles.playerFallbackCard}>
+                  <Text style={styles.playerFallbackTitle}>Preparando reproductor...</Text>
+                  <Text style={styles.playerFallbackCopy}>
+                    Estamos cargando el documento primero para no forzar Android durante la entrada.
+                  </Text>
+                </View>
+              ) : playerGate === 'deferred' &&
+                (document.mediaType === 'audio' || document.mediaType === 'video') ? (
+                <View style={styles.playerFallbackCard}>
+                  <Text style={styles.playerFallbackTitle}>Modo seguro del reproductor</Text>
+                  <Text style={styles.playerFallbackCopy}>
+                    Detectamos un cierre reciente mientras Studio abría multimedia. Puedes entrar al
+                    documento y activar el player manualmente.
+                  </Text>
+                  <GradientButton
+                    onPress={() => {
+                      void setStudioDebugCheckpoint('studio:player:manual-enable', {
+                        documentId: document.id,
+                        mediaType: document.mediaType || 'text-only',
+                      });
+                      setPlayerGate('enabled');
+                    }}>
+                    Activar reproductor
+                  </GradientButton>
+                </View>
+              ) : document.mediaType === 'audio' || document.mediaType === 'video' ? (
                 <MediaPlayerBar
                   currentTime={currentTime || 0}
                   duration={duration || 0}
@@ -866,6 +937,25 @@ const styles = StyleSheet.create({
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiBold,
     fontSize: 15,
+  },
+  playerFallbackCard: {
+    backgroundColor: creatorTheme.panel,
+    borderColor: creatorTheme.border,
+    borderRadius: creatorTheme.radiusLg,
+    borderWidth: 1,
+    gap: 10,
+    padding: 14,
+  },
+  playerFallbackCopy: {
+    color: creatorTheme.textMuted,
+    fontFamily: creatorTheme.fontUiMedium,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  playerFallbackTitle: {
+    color: creatorTheme.text,
+    fontFamily: creatorTheme.fontUiBold,
+    fontSize: 16,
   },
   safeArea: {
     flex: 1,
