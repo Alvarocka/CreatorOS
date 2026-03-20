@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,7 +14,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { createAudioPlayer } from 'expo-audio';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,22 +100,30 @@ export default function StudioDocumentScreen() {
   const [muted, setMuted] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [videoExpanded, setVideoExpanded] = useState(false);
+  const [mediaPlaybackReady, setMediaPlaybackReady] = useState(false);
   const [savingState, setSavingState] = useState<'idle' | 'saved' | 'saving' | 'error'>('idle');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
 
-  const audioPlayer = useAudioPlayer(
-    document?.mediaType === 'audio' && document.mediaUri ? document.mediaUri : null,
-    { updateInterval: 250 }
-  );
-  const audioStatus = useAudioPlayerStatus(audioPlayer);
+  const audioPlayer = useMemo(() => {
+    if (!mediaPlaybackReady || document?.mediaType !== 'audio' || !document.mediaUri) {
+      return null;
+    }
+
+    return createAudioPlayer(document.mediaUri, { updateInterval: 250 });
+  }, [document?.mediaType, document?.mediaUri, mediaPlaybackReady]);
   const videoPlayer = useMemo(() => {
-    if (document?.mediaType !== 'video' || !document.mediaUri) {
+    if (!mediaPlaybackReady || document?.mediaType !== 'video' || !document.mediaUri) {
       return null;
     }
 
     return createVideoPlayer(document.mediaUri);
-  }, [document?.mediaType, document?.mediaUri]);
+  }, [document?.mediaType, document?.mediaUri, mediaPlaybackReady]);
+  const [audioPlaybackState, setAudioPlaybackState] = useState({
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+  });
   const [videoPlaybackState, setVideoPlaybackState] = useState({
     currentTime: 0,
     duration: 0,
@@ -122,11 +131,11 @@ export default function StudioDocumentScreen() {
   });
 
   const currentTime =
-    document?.mediaType === 'audio' ? audioStatus.currentTime : videoPlaybackState.currentTime;
+    document?.mediaType === 'audio' ? audioPlaybackState.currentTime : videoPlaybackState.currentTime;
   const duration =
-    document?.mediaType === 'audio' ? audioStatus.duration : videoPlaybackState.duration;
+    document?.mediaType === 'audio' ? audioPlaybackState.duration : videoPlaybackState.duration;
   const isPlaying =
-    document?.mediaType === 'audio' ? audioStatus.playing : videoPlaybackState.playing;
+    document?.mediaType === 'audio' ? audioPlaybackState.playing : videoPlaybackState.playing;
 
   const timestampMarkers = useMemo(() => extractTimestampMarkers(noteText), [noteText]);
 
@@ -161,10 +170,53 @@ export default function StudioDocumentScreen() {
   }, [load]);
 
   useEffect(() => {
+    setMediaPlaybackReady(false);
+
+    if (!document?.mediaType || !document.mediaUri) {
+      return;
+    }
+
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      setMediaPlaybackReady(true);
+    });
+
+    return () => {
+      interaction.cancel();
+    };
+  }, [document?.id, document?.mediaType, document?.mediaUri]);
+
+  useEffect(() => {
+    return () => {
+      audioPlayer?.release();
+    };
+  }, [audioPlayer]);
+
+  useEffect(() => {
     return () => {
       videoPlayer?.release();
     };
   }, [videoPlayer]);
+
+  useEffect(() => {
+    if (document?.mediaType !== 'audio' || !audioPlayer) {
+      setAudioPlaybackState({
+        currentTime: 0,
+        duration: 0,
+        playing: false,
+      });
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setAudioPlaybackState({
+        currentTime: audioPlayer.currentTime || 0,
+        duration: audioPlayer.duration || 0,
+        playing: Boolean(audioPlayer.playing),
+      });
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [audioPlayer, document?.mediaType, document?.mediaUri]);
 
   useEffect(() => {
     if (document?.mediaType !== 'video' || !videoPlayer) {
@@ -188,7 +240,7 @@ export default function StudioDocumentScreen() {
   }, [document?.mediaType, document?.mediaUri, videoPlayer]);
 
   useEffect(() => {
-    if (document?.mediaType === 'audio') {
+    if (document?.mediaType === 'audio' && audioPlayer?.isLoaded) {
       audioPlayer.playbackRate = playbackRate;
       audioPlayer.loop = loopEnabled;
       audioPlayer.muted = muted;
@@ -276,11 +328,14 @@ export default function StudioDocumentScreen() {
   }
 
   function handleTogglePlayback() {
-    if (document?.mediaType === 'audio') {
-      if (audioStatus.playing) {
+    if (document?.mediaType === 'audio' && audioPlayer) {
+      if (audioPlaybackState.playing) {
         audioPlayer.pause();
       } else {
-        if (audioStatus.currentTime >= audioStatus.duration && audioStatus.duration > 0) {
+        if (
+          audioPlaybackState.currentTime >= audioPlaybackState.duration &&
+          audioPlaybackState.duration > 0
+        ) {
           void audioPlayer.seekTo(0);
         }
         audioPlayer.play();
@@ -301,7 +356,7 @@ export default function StudioDocumentScreen() {
   }
 
   function handleSeek(seconds: number) {
-    if (document?.mediaType === 'audio') {
+    if (document?.mediaType === 'audio' && audioPlayer) {
       void audioPlayer.seekTo(seconds);
       return;
     }
