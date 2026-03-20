@@ -5,21 +5,18 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 
 import {
-  InstrumentSerif_400Regular,
-  InstrumentSerif_400Regular_Italic,
-} from '@expo-google-fonts/instrument-serif';
-import {
   JetBrainsMono_300Light,
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
 } from '@expo-google-fonts/jetbrains-mono';
 import {
-  Syne_400Regular,
-  Syne_500Medium,
-  Syne_600SemiBold,
-  Syne_700Bold,
-  Syne_800ExtraBold,
-} from '@expo-google-fonts/syne';
+  Inter_400Regular,
+  Inter_400Regular_Italic,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 
 import { AuthProvider } from '@/src/providers/auth-provider';
 
@@ -27,16 +24,15 @@ void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    InstrumentSerif_400Regular,
-    InstrumentSerif_400Regular_Italic,
+    Inter_400Regular,
+    Inter_400Regular_Italic,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
     JetBrainsMono_300Light,
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
-    Syne_400Regular,
-    Syne_500Medium,
-    Syne_600SemiBold,
-    Syne_700Bold,
-    Syne_800ExtraBold,
   });
 
   useEffect(() => {

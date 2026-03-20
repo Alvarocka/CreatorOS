@@ -179,9 +179,9 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiExtraBold,
-    fontSize: 30,
-    letterSpacing: -1.1,
-    lineHeight: 34,
+    fontSize: 24,
+    letterSpacing: -0.7,
+    lineHeight: 30,
   },
   secondaryButton: {
     minWidth: 92,
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiBold,
-    fontSize: 22,
-    letterSpacing: -0.8,
+    fontSize: 20,
+    letterSpacing: -0.5,
   },
   statsRow: {
     flexDirection: 'row',

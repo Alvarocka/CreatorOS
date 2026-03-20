@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   recordTitle: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiExtraBold,
-    fontSize: 22,
+    fontSize: 20,
   },
   recordZone: {
     alignItems: 'center',
@@ -416,9 +416,9 @@ const styles = StyleSheet.create({
   title: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiExtraBold,
-    fontSize: 30,
-    letterSpacing: -0.9,
-    lineHeight: 34,
+    fontSize: 25,
+    letterSpacing: -0.5,
+    lineHeight: 31,
   },
   uploadCopy: {
     color: creatorTheme.textMuted,
@@ -473,6 +473,6 @@ const styles = StyleSheet.create({
   zoneTitle: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiBold,
-    fontSize: 20,
+    fontSize: 18,
   },
 });

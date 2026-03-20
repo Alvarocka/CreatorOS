@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
   heading: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiExtraBold,
-    fontSize: 34,
-    letterSpacing: -1.2,
+    fontSize: 28,
+    letterSpacing: -0.8,
   },
   safeArea: {
     flex: 1,
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   subheading: {
     color: creatorTheme.textMuted,
     fontFamily: creatorTheme.fontUiMedium,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

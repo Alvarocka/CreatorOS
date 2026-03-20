@@ -17,7 +17,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { createVideoPlayer, VideoView } from 'expo-video';
 
 import { FilterChip } from '@/src/components/filter-chip';
 import { GradientButton } from '@/src/components/gradient-button';
@@ -108,9 +108,13 @@ export default function StudioDocumentScreen() {
     { updateInterval: 250 }
   );
   const audioStatus = useAudioPlayerStatus(audioPlayer);
-  const videoPlayer = useVideoPlayer(
-    document?.mediaType === 'video' && document.mediaUri ? document.mediaUri : null
-  );
+  const videoPlayer = useMemo(() => {
+    if (document?.mediaType !== 'video' || !document.mediaUri) {
+      return null;
+    }
+
+    return createVideoPlayer(document.mediaUri);
+  }, [document?.mediaType, document?.mediaUri]);
   const [videoPlaybackState, setVideoPlaybackState] = useState({
     currentTime: 0,
     duration: 0,
@@ -157,7 +161,20 @@ export default function StudioDocumentScreen() {
   }, [load]);
 
   useEffect(() => {
-    if (document?.mediaType !== 'video') return;
+    return () => {
+      videoPlayer?.release();
+    };
+  }, [videoPlayer]);
+
+  useEffect(() => {
+    if (document?.mediaType !== 'video' || !videoPlayer) {
+      setVideoPlaybackState({
+        currentTime: 0,
+        duration: 0,
+        playing: false,
+      });
+      return;
+    }
 
     const interval = setInterval(() => {
       setVideoPlaybackState({
@@ -179,7 +196,7 @@ export default function StudioDocumentScreen() {
       return;
     }
 
-    if (document?.mediaType === 'video') {
+    if (document?.mediaType === 'video' && videoPlayer) {
       videoPlayer.playbackRate = playbackRate;
       videoPlayer.loop = loopEnabled;
       videoPlayer.muted = muted;
@@ -271,7 +288,7 @@ export default function StudioDocumentScreen() {
       return;
     }
 
-    if (document?.mediaType === 'video') {
+    if (document?.mediaType === 'video' && videoPlayer) {
       if (videoPlayer.playing) {
         videoPlayer.pause();
       } else {
@@ -289,7 +306,7 @@ export default function StudioDocumentScreen() {
       return;
     }
 
-    if (document?.mediaType === 'video') {
+    if (document?.mediaType === 'video' && videoPlayer) {
       videoPlayer.currentTime = seconds;
       setVideoPlaybackState((current) => ({ ...current, currentTime: seconds }));
     }
@@ -504,7 +521,7 @@ export default function StudioDocumentScreen() {
                 </View>
               ) : null}
 
-              {document.mediaType === 'video' && document.mediaUri ? (
+              {document.mediaType === 'video' && document.mediaUri && videoPlayer ? (
                 <Pressable
                   onPress={() => setVideoExpanded((current) => !current)}
                   style={[styles.videoFrame, videoExpanded && styles.videoFrameExpanded]}>
@@ -597,7 +614,7 @@ const styles = StyleSheet.create({
   documentTitle: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiBold,
-    fontSize: 20,
+    fontSize: 18,
   },
   drawerBackdrop: {
     backgroundColor: 'rgba(15, 14, 12, 0.72)',
@@ -643,8 +660,8 @@ const styles = StyleSheet.create({
     color: '#181512',
     flex: 1,
     fontFamily: creatorTheme.fontBody,
-    fontSize: 26,
-    lineHeight: 38,
+    fontSize: 22,
+    lineHeight: 32,
     minHeight: 340,
     textAlignVertical: 'top',
   },
@@ -764,7 +781,7 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     color: creatorTheme.text,
     fontFamily: creatorTheme.fontUiBold,
-    fontSize: 16,
+    fontSize: 15,
   },
   safeArea: {
     flex: 1,
