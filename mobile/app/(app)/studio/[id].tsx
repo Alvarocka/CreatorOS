@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -105,9 +104,7 @@ export default function StudioDocumentScreen() {
   const [playerGate, setPlayerGate] = useState<'checking' | 'deferred' | 'enabled'>('checking');
   const [playerBooting, setPlayerBooting] = useState(false);
   const [savingState, setSavingState] = useState<'idle' | 'saved' | 'saving' | 'error'>('idle');
-  const [audioPlayer, setAudioPlayer] = useState<AudioPlayer | null>(null);
   const [videoPlayer, setVideoPlayer] = useState<VideoPlayer | null>(null);
-  const audioPlayerRef = useRef<AudioPlayer | null>(null);
   const videoPlayerRef = useRef<VideoPlayer | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedRef = useRef(false);
@@ -130,18 +127,6 @@ export default function StudioDocumentScreen() {
     document?.mediaType === 'audio' ? audioPlaybackState.playing : videoPlaybackState.playing;
 
   const timestampMarkers = useMemo(() => extractTimestampMarkers(noteText), [noteText]);
-
-  const releaseAudioPlayer = useCallback((player: AudioPlayer | null) => {
-    if (!player) return;
-
-    try {
-      player.pause();
-    } catch {}
-
-    try {
-      player.remove();
-    } catch {}
-  }, []);
 
   const releaseVideoPlayer = useCallback((player: VideoPlayer | null) => {
     if (!player) return;
@@ -211,7 +196,8 @@ export default function StudioDocumentScreen() {
         checkpoint.step !== 'studio:stable' &&
         ageMs < 1000 * 60 * 20;
 
-      setPlayerGate(recentStudioCheckpoint ? 'deferred' : 'enabled');
+      const shouldStartDeferred = Platform.OS === 'android' || recentStudioCheckpoint;
+      setPlayerGate(shouldStartDeferred ? 'deferred' : 'enabled');
     }
 
     void resolvePlayerGate();
@@ -223,12 +209,10 @@ export default function StudioDocumentScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    let nextAudioPlayer: AudioPlayer | null = null;
     let nextVideoPlayer: VideoPlayer | null = null;
 
     setMediaPlaybackReady(false);
     setPlayerBooting(false);
-    setFeedback('');
     setAudioPlaybackState({
       currentTime: 0,
       duration: 0,
@@ -239,10 +223,6 @@ export default function StudioDocumentScreen() {
       duration: 0,
       playing: false,
     });
-
-    releaseAudioPlayer(audioPlayerRef.current);
-    audioPlayerRef.current = null;
-    setAudioPlayer(null);
 
     releaseVideoPlayer(videoPlayerRef.current);
     videoPlayerRef.current = null;
@@ -265,36 +245,15 @@ export default function StudioDocumentScreen() {
             mediaType: document.mediaType || 'text-only',
           });
 
-          if (document.mediaType === 'audio') {
-            await setAudioModeAsync({
-              allowsRecording: false,
-              playsInSilentMode: true,
-            });
-            nextAudioPlayer = createAudioPlayer(document.mediaUri, {
-              keepAudioSessionActive: true,
-              updateInterval: 250,
-            });
+          nextVideoPlayer = createVideoPlayer(document.mediaUri);
 
-            if (cancelled) {
-              releaseAudioPlayer(nextAudioPlayer);
-              return;
-            }
-
-            audioPlayerRef.current = nextAudioPlayer;
-            setAudioPlayer(nextAudioPlayer);
+          if (cancelled) {
+            releaseVideoPlayer(nextVideoPlayer);
+            return;
           }
 
-          if (document.mediaType === 'video') {
-            nextVideoPlayer = createVideoPlayer(document.mediaUri);
-
-            if (cancelled) {
-              releaseVideoPlayer(nextVideoPlayer);
-              return;
-            }
-
-            videoPlayerRef.current = nextVideoPlayer;
-            setVideoPlayer(nextVideoPlayer);
-          }
+          videoPlayerRef.current = nextVideoPlayer;
+          setVideoPlayer(nextVideoPlayer);
 
           setMediaPlaybackReady(true);
           setPlayerBooting(false);
@@ -325,25 +284,14 @@ export default function StudioDocumentScreen() {
       cancelled = true;
       interaction.cancel();
 
-      if (nextAudioPlayer && audioPlayerRef.current !== nextAudioPlayer) {
-        releaseAudioPlayer(nextAudioPlayer);
-      }
-
       if (nextVideoPlayer && videoPlayerRef.current !== nextVideoPlayer) {
         releaseVideoPlayer(nextVideoPlayer);
       }
     };
-  }, [
-    document?.id,
-    document?.mediaType,
-    document?.mediaUri,
-    playerGate,
-    releaseAudioPlayer,
-    releaseVideoPlayer,
-  ]);
+  }, [document?.id, document?.mediaType, document?.mediaUri, playerGate, releaseVideoPlayer]);
 
   useEffect(() => {
-    if (document?.mediaType !== 'audio' || !audioPlayer) {
+    if (document?.mediaType !== 'audio' || !videoPlayer) {
       setAudioPlaybackState({
         currentTime: 0,
         duration: 0,
@@ -353,32 +301,25 @@ export default function StudioDocumentScreen() {
     }
 
     let didMarkLoaded = false;
-
-    setAudioPlaybackState({
-      currentTime: audioPlayer.currentTime || 0,
-      duration: audioPlayer.duration || 0,
-      playing: Boolean(audioPlayer.playing),
-    });
-
-    const subscription = audioPlayer.addListener('playbackStatusUpdate', (status) => {
+    const interval = setInterval(() => {
       setAudioPlaybackState({
-        currentTime: status.currentTime || 0,
-        duration: status.duration || 0,
-        playing: Boolean(status.playing),
+        currentTime: videoPlayer.currentTime || 0,
+        duration: videoPlayer.duration || 0,
+        playing: Boolean(videoPlayer.playing),
       });
 
-      if (status.isLoaded && !didMarkLoaded) {
+      if (videoPlayer.duration > 0 && !didMarkLoaded) {
         didMarkLoaded = true;
         void setStudioDebugCheckpoint('studio:audio:loaded', {
           documentId: document.id,
         });
       }
-    });
+    }, 250);
 
     return () => {
-      subscription.remove();
+      clearInterval(interval);
     };
-  }, [audioPlayer, document?.id, document?.mediaType]);
+  }, [document?.id, document?.mediaType, videoPlayer]);
 
   useEffect(() => {
     if (!document?.mediaType || playerGate !== 'enabled' || !mediaPlaybackReady) {
@@ -417,36 +358,20 @@ export default function StudioDocumentScreen() {
   }, [document?.mediaType, document?.mediaUri, videoPlayer]);
 
   useEffect(() => {
-    if (document?.mediaType === 'audio' && audioPlayer) {
-      audioPlayer.playbackRate = playbackRate;
-      audioPlayer.loop = loopEnabled;
-      audioPlayer.muted = muted;
-      audioPlayer.volume = muted ? 0 : 1;
-      return;
-    }
-
-    if (document?.mediaType === 'video' && videoPlayer) {
+    if ((document?.mediaType === 'audio' || document?.mediaType === 'video') && videoPlayer) {
       videoPlayer.playbackRate = playbackRate;
       videoPlayer.loop = loopEnabled;
       videoPlayer.muted = muted;
+      videoPlayer.volume = muted ? 0 : 1;
     }
-  }, [
-    audioPlayer,
-    document?.mediaType,
-    loopEnabled,
-    muted,
-    playbackRate,
-    videoPlayer,
-  ]);
+  }, [document?.mediaType, loopEnabled, muted, playbackRate, videoPlayer]);
 
   useEffect(() => {
     return () => {
-      releaseAudioPlayer(audioPlayerRef.current);
-      audioPlayerRef.current = null;
       releaseVideoPlayer(videoPlayerRef.current);
       videoPlayerRef.current = null;
     };
-  }, [releaseAudioPlayer, releaseVideoPlayer]);
+  }, [releaseVideoPlayer]);
 
   const saveNow = useCallback(async () => {
     if (!document || !user) return;
@@ -521,22 +446,7 @@ export default function StudioDocumentScreen() {
   }
 
   function handleTogglePlayback() {
-    if (document?.mediaType === 'audio' && audioPlayer) {
-      if (audioPlaybackState.playing) {
-        audioPlayer.pause();
-      } else {
-        if (
-          audioPlaybackState.currentTime >= audioPlaybackState.duration &&
-          audioPlaybackState.duration > 0
-        ) {
-          void audioPlayer.seekTo(0);
-        }
-        audioPlayer.play();
-      }
-      return;
-    }
-
-    if (document?.mediaType === 'video' && videoPlayer) {
+    if ((document?.mediaType === 'audio' || document?.mediaType === 'video') && videoPlayer) {
       if (videoPlayer.playing) {
         videoPlayer.pause();
       } else {
@@ -549,14 +459,13 @@ export default function StudioDocumentScreen() {
   }
 
   function handleSeek(seconds: number) {
-    if (document?.mediaType === 'audio' && audioPlayer) {
-      void audioPlayer.seekTo(seconds);
-      return;
-    }
-
-    if (document?.mediaType === 'video' && videoPlayer) {
+    if ((document?.mediaType === 'audio' || document?.mediaType === 'video') && videoPlayer) {
       videoPlayer.currentTime = seconds;
-      setVideoPlaybackState((current) => ({ ...current, currentTime: seconds }));
+      if (document.mediaType === 'audio') {
+        setAudioPlaybackState((current) => ({ ...current, currentTime: seconds }));
+      } else {
+        setVideoPlaybackState((current) => ({ ...current, currentTime: seconds }));
+      }
     }
   }
 
@@ -808,8 +717,8 @@ export default function StudioDocumentScreen() {
                 <View style={styles.playerFallbackCard}>
                   <Text style={styles.playerFallbackTitle}>Modo seguro del reproductor</Text>
                   <Text style={styles.playerFallbackCopy}>
-                    Detectamos un cierre reciente mientras Studio abría multimedia. Puedes entrar al
-                    documento y activar el player manualmente.
+                    En Android abrimos primero el editor y activamos el reproductor manualmente para
+                    evitar cierres al montar multimedia local.
                   </Text>
                   <GradientButton
                     onPress={() => {
@@ -819,7 +728,7 @@ export default function StudioDocumentScreen() {
                       });
                       setPlayerGate('enabled');
                     }}>
-                    Activar reproductor
+                    Abrir reproductor
                   </GradientButton>
                 </View>
               ) : document.mediaType === 'audio' || document.mediaType === 'video' ? (
